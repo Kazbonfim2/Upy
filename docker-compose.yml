@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: upy
+      POSTGRES_PASSWORD: upy
+      POSTGRES_DB: upy
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U upy -d upy"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./server
+    command: bun run src/index.ts
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://upy:upy@db:5432/upy
+      API_PORT: "3000"
+      CORS_ORIGIN: http://localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: ./server
+    command: bun run src/worker.ts
+    environment:
+      DATABASE_URL: postgres://upy:upy@db:5432/upy
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-upy@localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      args:
+        VITE_API_URL: http://localhost:3000
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
