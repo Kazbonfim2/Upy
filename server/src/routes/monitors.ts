@@ -1,0 +1,84 @@
+import { desc, eq } from "drizzle-orm";
+import { Hono } from "hono";
+import { db } from "../db";
+import { alerts, monitors } from "../db/schema";
+import { history, incidentList, runOne, uptime } from "../lib/run-check";
+import { parseAlert, parseMonitor } from "../lib/validate";
+
+export const monitorRoutes = new Hono();
+
+monitorRoutes.get("/", async (c) => {
+  const rows = await db.select().from(monitors).orderBy(desc(monitors.createdAt));
+  return c.json(rows);
+});
+
+monitorRoutes.post("/", async (c) => {
+  const body = (await c.req.json()) as Record<string, unknown>;
+  const data = parseMonitor(body) as {
+    name: string;
+    url: string;
+    method: string;
+    intervalSeconds: number;
+    timeoutMs: number;
+    expectedStatus: number;
+    enabled: boolean;
+  };
+  const [row] = await db.insert(monitors).values(data).returning();
+  return c.json(row, 201);
+});
+
+monitorRoutes.get("/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const [row] = await db.select().from(monitors).where(eq(monitors.id, id));
+  if (!row) return c.json({ error: "não encontrado" }, 404);
+  const [stats, checks, incidents, alertRows] = await Promise.all([
+    uptime(id),
+    history(id),
+    incidentList(id),
+    db.select().from(alerts).where(eq(alerts.monitorId, id)),
+  ]);
+  return c.json({ ...row, stats, checks, incidents, alerts: alertRows });
+});
+
+monitorRoutes.patch("/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const body = (await c.req.json()) as Record<string, unknown>;
+  const data = parseMonitor(body, true);
+  const [row] = await db.update(monitors).set(data).where(eq(monitors.id, id)).returning();
+  if (!row) return c.json({ error: "não encontrado" }, 404);
+  return c.json(row);
+});
+
+monitorRoutes.delete("/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const [row] = await db.delete(monitors).where(eq(monitors.id, id)).returning();
+  if (!row) return c.json({ error: "não encontrado" }, 404);
+  return c.json({ ok: true });
+});
+
+monitorRoutes.post("/:id/check", async (c) => {
+  const id = Number(c.req.param("id"));
+  try {
+    const row = await runOne(id);
+    return c.json(row);
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 404);
+  }
+});
+
+monitorRoutes.post("/:id/alerts", async (c) => {
+  const id = Number(c.req.param("id"));
+  const [m] = await db.select().from(monitors).where(eq(monitors.id, id));
+  if (!m) return c.json({ error: "não encontrado" }, 404);
+  const body = (await c.req.json()) as Record<string, unknown>;
+  const data = parseAlert(body);
+  const [row] = await db.insert(alerts).values({ monitorId: id, ...data }).returning();
+  return c.json(row, 201);
+});
+
+monitorRoutes.delete("/:id/alerts/:alertId", async (c) => {
+  const alertId = Number(c.req.param("alertId"));
+  const [row] = await db.delete(alerts).where(eq(alerts.id, alertId)).returning();
+  if (!row) return c.json({ error: "não encontrado" }, 404);
+  return c.json({ ok: true });
+});
