@@ -1,5 +1,13 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
+@import "@fontsource/special-elite";
+
+@font-face {
+  font-family: "American Typewriter";
+  src: local("American Typewriter"), local("AmericanTypewriter"),
+    local("American Typewriter Bold"), local("AmericanTypewriter-Bold");
+  font-display: swap;
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -11,6 +19,7 @@
     --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
     --animate-toast-error-even: toast-error-even 0.28s cubic-bezier(0.5, 1, 0.89, 1);
     --font-heading: 'Inter', sans-serif;
+    --font-logo: "American Typewriter", "Special Elite", ui-serif, serif;
     --font-mono: ui-monospace, 'Geist Mono', monospace;
     --font-sans: 'Inter', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);

@@ -1,0 +1,160 @@
+import {
+  ActivityIcon,
+  BellIcon,
+  ClockIcon,
+  DatabaseIcon,
+  GitBranchIcon,
+  ServerIcon,
+  ShieldIcon,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardHeader, CardPanel, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Logo } from "@/components/Logo";
+
+const features = [
+  {
+    icon: ActivityIcon,
+    title: "Health checks",
+    body: "Nome, URL, método HTTP, intervalo, timeout e status esperado. GET, HEAD, POST e o resto.",
+  },
+  {
+    icon: ClockIcon,
+    title: "Worker separado",
+    body: "O processo que bate na URL não é a API. Timeout num site lento não trava o dashboard.",
+  },
+  {
+    icon: ShieldIcon,
+    title: "Incidentes",
+    body: "Caiu: abre incidente e alerta. Voltou: fecha sozinho. Sem spam a cada check falho.",
+  },
+  {
+    icon: BellIcon,
+    title: "Alertas",
+    body: "E-mail, webhook do Discord ou POST genérico. Só na abertura e na recuperação.",
+  },
+  {
+    icon: DatabaseIcon,
+    title: "Histórico no Postgres",
+    body: "Status HTTP, latência, erro e horário. Uptime e média saem da mesma tabela.",
+  },
+  {
+    icon: ServerIcon,
+    title: "Self-hosted",
+    body: "Docker Compose: banco, API, worker e UI. Os dados ficam na sua máquina, não num SaaS.",
+  },
+];
+
+export default function Home() {
+  return (
+    <div className="min-h-svh">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5">
+        <a href="/" className="text-foreground no-underline">
+          <Logo className="text-2xl" />
+        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline">Open Source</Badge>
+          <Badge variant="outline">Self-hosted</Badge>
+          <Badge variant="secondary">MIT</Badge>
+          <Button size="sm" render={<a href="/app" />}>
+            Dashboard
+          </Button>
+        </div>
+      </nav>
+
+      <section className="mx-auto max-w-6xl px-4 pb-16 pt-8 md:pt-16">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+            API & Website Monitor
+          </p>
+          <h1 className="mb-6">
+            <Logo className="text-6xl sm:text-8xl" />
+          </h1>
+          <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground text-pretty">
+            Cadastre URLs. Um worker verifica disponibilidade e latência. O dashboard mostra o
+            estado agora — e o incidente quando algo cai. Código aberto. Você hospeda.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button size="xl" render={<a href="/app" />}>
+              Abrir dashboard
+            </Button>
+            <Button size="xl" variant="outline" render={<a href="#self-host" />}>
+              Subir na sua máquina
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pb-20">
+        <div className="mb-8 max-w-2xl">
+          <h2 className="font-heading text-2xl font-medium tracking-tight">O que o Upy faz</h2>
+          <p className="mt-2 text-muted-foreground">
+            Ferramenta no estilo UptimeRobot, sem conta na nuvem de terceiro. MVP enxuto: monitor,
+            check, incidente, alerta.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((f) => (
+            <Card key={f.title}>
+              <CardHeader>
+                <f.icon className="mb-2 size-5 text-muted-foreground" aria-hidden />
+                <CardTitle>{f.title}</CardTitle>
+                <CardDescription>{f.body}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section id="self-host" className="border-t bg-muted/40">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-2 md:items-center">
+          <div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <Badge variant="success">Open Source</Badge>
+              <Badge variant="info">Self-hosted</Badge>
+            </div>
+            <h2 className="font-heading text-2xl font-medium tracking-tight">
+              Seu Postgres. Seu worker. Sua regra.
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Licença MIT. Sem telemetria, sem plano pago, sem Kubernetes. Compose sobe banco, API,
+              worker e a UI. O código está no repositório — fork, patch, hospeda onde quiser.
+            </p>
+            <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
+              <li className="flex gap-2">
+                <GitBranchIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                Código aberto, MIT, pra estudar ou rodar em produção pequena.
+              </li>
+              <li className="flex gap-2">
+                <ServerIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                Self-hosted: os checks saem da sua rede, os dados não saem do seu disco.
+              </li>
+            </ul>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Docker</CardTitle>
+              <CardDescription>Na raiz do projeto.</CardDescription>
+            </CardHeader>
+            <CardPanel>
+              <pre className="overflow-x-auto rounded-lg bg-background p-4 text-sm">
+                <code>{`cp .env.example .env
+docker compose up -d --build`}</code>
+              </pre>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Dashboard em localhost:5173 · API em :3000
+              </p>
+            </CardPanel>
+          </Card>
+        </div>
+      </section>
+
+      <Separator />
+      <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground">
+        <Logo className="text-lg text-foreground" />
+        <span>Open source · Self-hosted · MIT</span>
+      </footer>
+    </div>
+  );
+}
