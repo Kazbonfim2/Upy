@@ -70,6 +70,8 @@ cd server && bun install && bun bin/check.ts
 
 Cobre: up/down pelo status esperado, abrir/fechar incidente, intervalo due, validação de URL/canal, payload de Discord/webhook.
 
+GitHub Actions (`.github/workflows/ci.yml`): o mesmo check, `oxlint` + build do Vite, e `docker compose build`.
+
 ## Demonstração
 
 | Método | Rota | Efeito |
