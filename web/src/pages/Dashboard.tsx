@@ -204,11 +204,12 @@ export default function Dashboard() {
   async function onAddAlert(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selected) return;
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     try {
       await api.addAlert(selected.id, { channel: channel.value, target: fd.get("target") });
       toastManager.add({ title: "Alerta salvo", type: "success" });
-      e.currentTarget.reset();
+      form.reset();
       await refresh();
     } catch (err) {
       toastManager.add({ title: "Falha", description: String(err), type: "error" });
