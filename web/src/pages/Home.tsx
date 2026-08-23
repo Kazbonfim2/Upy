@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardPanel, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Footer } from "@/components/Footer";
 import { GithubIcon } from "@/components/GithubIcon";
 import { Logo } from "@/components/Logo";
 import { Navbar } from "@/components/Navbar";
@@ -60,7 +60,7 @@ export default function Home() {
             API & Website Monitor
           </p>
           <h1 className="mb-3">
-            <Logo className="text-6xl sm:text-8xl" />
+            <Logo className="text-6xl sm:text-8xl animate-jiggle select-none" />
           </h1>
           <div className="mb-6 flex justify-center">
             <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs sm:text-sm font-medium">
@@ -177,22 +177,7 @@ docker compose up -d --build`}</code>
         </div>
       </section>
 
-      <Separator />
-      <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground">
-        <Logo className="text-lg text-foreground" />
-        <div className="flex items-center gap-4">
-          <span>Open source · Self-hosted · MIT</span>
-          <a
-            href="https://github.com/Kazbonfim2/Upy"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
-          >
-            <GithubIcon className="size-4" />
-            GitHub
-          </a>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

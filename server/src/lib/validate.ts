@@ -1,5 +1,7 @@
-const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]);
-const CHANNELS = new Set(["email", "discord", "webhook"]);
+import { z } from "zod";
+
+const METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] as const;
+const CHANNELS = ["email", "discord", "webhook"] as const;
 
 export function parseUrl(raw: unknown): string {
   if (typeof raw !== "string") throw new Error("url obrigatória");
@@ -23,52 +25,103 @@ export type MonitorInput = {
   timeoutMs: number;
   expectedStatus: number;
   enabled: boolean;
+  body?: string | null;
 };
 
+const jsonBodySchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((v) => (typeof v === "string" ? v.trim() : null))
+  .refine(
+    (v) => {
+      if (!v) return true;
+      try {
+        JSON.parse(v);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "body precisa ser um JSON válido" },
+  );
+
+export const monitorSchema = z.object({
+  name: z.string().trim().min(1, "name obrigatório"),
+  url: z.string().trim().transform(parseUrl),
+  method: z
+    .string()
+    .default("GET")
+    .transform((m) => m.toUpperCase())
+    .refine((m) => METHODS.includes(m as (typeof METHODS)[number]), { message: "method inválido" }),
+  intervalSeconds: z.coerce
+    .number()
+    .int()
+    .refine((n) => n >= 10 && n <= 86400, { message: "intervalSeconds entre 10 e 86400" })
+    .default(60),
+  timeoutMs: z.coerce
+    .number()
+    .int()
+    .min(500, { message: "timeoutMs entre 500 e 30000" })
+    .max(30000, { message: "timeoutMs entre 500 e 30000" })
+    .default(5000),
+  expectedStatus: z.coerce
+    .number()
+    .int()
+    .min(100, { message: "expectedStatus inválido" })
+    .max(599, { message: "expectedStatus inválido" })
+    .default(200),
+  enabled: z.boolean().default(true),
+  body: jsonBodySchema.optional(),
+});
+
 export function parseMonitor(body: Record<string, unknown>, partial = false): Partial<MonitorInput> {
-  const out: Partial<MonitorInput> = {};
-  if (!partial || "name" in body) {
-    if (typeof body.name !== "string" || !body.name.trim()) throw new Error("name obrigatório");
-    out.name = body.name.trim();
+  if (partial) {
+    const partialSchema = monitorSchema.partial();
+    const res = partialSchema.safeParse(body);
+    if (!res.success) {
+      throw new Error(res.error.issues[0]?.message || "dados inválidos");
+    }
+    return res.data;
   }
-  if (!partial || "url" in body) out.url = parseUrl(body.url);
-  if (!partial || "method" in body) {
-    const method = String(body.method ?? "GET").toUpperCase();
-    if (!METHODS.has(method)) throw new Error("method inválido");
-    out.method = method;
+  const res = monitorSchema.safeParse(body);
+  if (!res.success) {
+    throw new Error(res.error.issues[0]?.message || "dados inválidos");
   }
-  if (!partial || "intervalSeconds" in body) {
-    const n = Number(body.intervalSeconds ?? 60);
-    if (!Number.isInteger(n) || n < 10 || n > 86400) throw new Error("intervalSeconds entre 10 e 86400");
-    out.intervalSeconds = n;
-  }
-  if (!partial || "timeoutMs" in body) {
-    const n = Number(body.timeoutMs ?? 5000);
-    if (!Number.isInteger(n) || n < 500 || n > 30000) throw new Error("timeoutMs entre 500 e 30000");
-    out.timeoutMs = n;
-  }
-  if (!partial || "expectedStatus" in body) {
-    const n = Number(body.expectedStatus ?? 200);
-    if (!Number.isInteger(n) || n < 100 || n > 599) throw new Error("expectedStatus inválido");
-    out.expectedStatus = n;
-  }
-  if (!partial || "enabled" in body) {
-    out.enabled = body.enabled === undefined ? true : Boolean(body.enabled);
-  }
-  return out;
+  return res.data;
 }
 
+export const alertSchema = z
+  .object({
+    channel: z.string().refine((c) => CHANNELS.includes(c as (typeof CHANNELS)[number]), {
+      message: "channel: email, discord ou webhook",
+    }),
+    target: z.string().trim().min(1, "target obrigatório"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.channel === "email") {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.target)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "e-mail inválido",
+        });
+      }
+    } else {
+      try {
+        parseUrl(data.target);
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "url inválida",
+        });
+      }
+    }
+  });
+
 export function parseAlert(body: Record<string, unknown>): { channel: string; target: string } {
-  const channel = String(body.channel ?? "");
-  if (!CHANNELS.has(channel)) throw new Error("channel: email, discord ou webhook");
-  const target = String(body.target ?? "").trim();
-  if (!target) throw new Error("target obrigatório");
-  if (channel === "email") {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) throw new Error("e-mail inválido");
-  } else {
-    parseUrl(target);
+  const res = alertSchema.safeParse(body);
+  if (!res.success) {
+    throw new Error(res.error.issues[0]?.message || "alerta inválido");
   }
-  return { channel, target };
+  return res.data;
 }
 
 export type CardInput = {
@@ -78,29 +131,20 @@ export type CardInput = {
   resolved: boolean;
 };
 
+export const cardSchema = z.object({
+  name: z.string().trim().min(1, "name obrigatório").max(100, "name máx. 100 caracteres"),
+  status: z.string().trim().min(1, "status obrigatório").max(100, "status máx. 100 caracteres"),
+  description: z.string().trim().max(300, "description máx. 300 caracteres").default(""),
+  resolved: z.boolean().default(false),
+});
+
 export function parseCard(body: Record<string, unknown>, partial = false): Partial<CardInput> {
-  const out: Partial<CardInput> = {};
-  if (!partial || "name" in body) {
-    if (typeof body.name !== "string" || !body.name.trim()) throw new Error("name obrigatório");
-    const name = body.name.trim();
-    if (name.length > 100) throw new Error("name máx. 100 caracteres");
-    out.name = name;
+  const schema = partial ? cardSchema.partial() : cardSchema;
+  const res = schema.safeParse(body);
+  if (!res.success) {
+    throw new Error(res.error.issues[0]?.message || "card inválido");
   }
-  if (!partial || "status" in body) {
-    if (typeof body.status !== "string" || !body.status.trim()) throw new Error("status obrigatório");
-    const status = body.status.trim();
-    if (status.length > 100) throw new Error("status máx. 100 caracteres");
-    out.status = status;
-  }
-  if (!partial || "description" in body) {
-    const description = body.description == null ? "" : String(body.description).trim();
-    if (description.length > 300) throw new Error("description máx. 300 caracteres");
-    out.description = description;
-  }
-  if (!partial || "resolved" in body) {
-    out.resolved = body.resolved === undefined ? false : Boolean(body.resolved);
-  }
-  return out;
+  return res.data;
 }
 
 function clip(s: string, n: number) {

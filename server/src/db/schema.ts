@@ -15,6 +15,7 @@ export const monitors = pgTable("monitors", {
   intervalSeconds: integer("interval_seconds").notNull().default(60),
   timeoutMs: integer("timeout_ms").notNull().default(5000),
   expectedStatus: integer("expected_status").notNull().default(200),
+  body: text("body"),
   enabled: boolean("enabled").notNull().default(true),
   lastOk: boolean("last_ok"),
   lastStatusCode: integer("last_status_code"),

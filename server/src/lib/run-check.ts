@@ -10,7 +10,7 @@ export async function runOne(monitorId: number) {
   const [monitor] = await db.select().from(monitors).where(eq(monitors.id, monitorId));
   if (!monitor) throw new Error("monitor não encontrado");
 
-  const result = await probe(monitor.url, monitor.method, monitor.timeoutMs);
+  const result = await probe(monitor.url, monitor.method, monitor.timeoutMs, monitor.body);
   const ok = isUp(result, monitor.expectedStatus);
 
   const [row] = await db
@@ -69,11 +69,9 @@ export async function runOne(monitorId: number) {
 export async function runDue() {
   const now = new Date();
   const list = await db.select().from(monitors).where(eq(monitors.enabled, true));
-  // ponytail: lock global no worker; um check por vez. Fila/paralelismo se a lista crescer.
-  for (const m of list) {
-    if (!isDue(m.lastCheckedAt, m.intervalSeconds, now)) continue;
-    await runOne(m.id);
-  }
+  const due = list.filter((m) => isDue(m.lastCheckedAt, m.intervalSeconds, now));
+  // ponytail: paralelismo nativo via Promise.allSettled. Limitar pool se passar de 1k URLs.
+  await Promise.allSettled(due.map((m) => runOne(m.id)));
 }
 
 export async function uptime(monitorId: number) {

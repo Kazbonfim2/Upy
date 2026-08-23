@@ -21,6 +21,7 @@ export type Monitor = {
   intervalSeconds: number;
   timeoutMs: number;
   expectedStatus: number;
+  body?: string | null;
   enabled: boolean;
   lastOk: boolean | null;
   lastStatusCode: number | null;

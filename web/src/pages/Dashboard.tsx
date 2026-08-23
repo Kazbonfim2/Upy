@@ -20,6 +20,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Meter, MeterIndicator, MeterLabel, MeterTrack } from "@/components/ui/meter";
 import {
   Select,
   SelectItem,
@@ -39,6 +40,8 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toastManager } from "@/components/ui/toast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { z } from "zod";
+import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { api, type CardRow, type Monitor, type MonitorDetail } from "@/lib/api";
 
@@ -51,13 +54,54 @@ const METHODS = [
   { label: "DELETE", value: "DELETE" },
 ];
 
+const METHODS_WITH_BODY = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+const INTERVALS = [
+  { label: "30s", value: 30 },
+  { label: "60s", value: 60 },
+  { label: "90s", value: 90 },
+];
+
 const CHANNELS = [
   { label: "E-mail", value: "email" },
   { label: "Discord", value: "discord" },
   { label: "Webhook", value: "webhook" },
 ];
 
+const createMonitorSchema = z.object({
+  name: z.string().trim().min(1, "Nome é obrigatório"),
+  url: z
+    .string()
+    .trim()
+    .min(1, "URL é obrigatória")
+    .refine((val) => {
+      try {
+        const u = new URL(val);
+        return u.protocol === "http:" || u.protocol === "https:";
+      } catch {
+        return false;
+      }
+    }, "URL inválida (deve começar com http:// ou https://)"),
+  method: z.string(),
+  intervalSeconds: z.number().refine((n) => [30, 60, 90].includes(n), "Intervalo deve ser 30s, 60s ou 90s"),
+  timeoutMs: z.coerce.number().int().min(500, "Timeout mínimo de 500ms").max(30000, "Timeout máximo de 30000ms"),
+  expectedStatus: z.coerce.number().int().min(100, "Status mínimo 100").max(599, "Status máximo 599"),
+  body: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val || !val.trim()) return true;
+      try {
+        JSON.parse(val);
+        return true;
+      } catch {
+        return false;
+      }
+    }, "JSON do corpo inválido"),
+});
+
 function statusBadge(m: Monitor) {
+  if (!m.enabled) return <Badge variant="secondary">pausado</Badge>;
   if (m.lastOk === null) return <Badge variant="secondary">aguardando</Badge>;
   if (m.lastOk) return <Badge variant="success">up</Badge>;
   return <Badge variant="error">down</Badge>;
@@ -87,6 +131,8 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selected, setSelected] = useState<MonitorDetail | null>(null);
   const [method, setMethod] = useState(METHODS[0]);
+  const [intervalOption, setIntervalOption] = useState(INTERVALS[1]);
+  const [bodyJson, setBodyJson] = useState("");
   const [channel, setChannel] = useState(CHANNELS[1]);
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
@@ -114,16 +160,40 @@ export default function Dashboard() {
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const hasBody = METHODS_WITH_BODY.has(method.value);
+    const parsed = createMonitorSchema.safeParse({
+      name: fd.get("name"),
+      url: fd.get("url"),
+      method: method.value,
+      intervalSeconds: intervalOption.value,
+      timeoutMs: fd.get("timeoutMs"),
+      expectedStatus: fd.get("expectedStatus"),
+      body: hasBody ? bodyJson : undefined,
+    });
+
+    if (!parsed.success) {
+      toastManager.add({
+        title: "Erro de validação",
+        description: parsed.error.issues[0]?.message || "Verifique os campos informados.",
+        type: "error",
+      });
+      return;
+    }
+
     try {
       await api.create({
-        name: fd.get("name"),
-        url: fd.get("url"),
-        method: method.value,
-        intervalSeconds: Number(fd.get("intervalSeconds")),
-        timeoutMs: Number(fd.get("timeoutMs")),
-        expectedStatus: Number(fd.get("expectedStatus")),
+        name: parsed.data.name,
+        url: parsed.data.url,
+        method: parsed.data.method,
+        intervalSeconds: parsed.data.intervalSeconds,
+        timeoutMs: parsed.data.timeoutMs,
+        expectedStatus: parsed.data.expectedStatus,
+        body: hasBody && parsed.data.body?.trim() ? parsed.data.body.trim() : null,
       });
       setOpen(false);
+      setBodyJson("");
+      setMethod(METHODS[0]);
+      setIntervalOption(INTERVALS[1]);
       toastManager.add({ title: "Monitor criado", type: "success" });
       await refresh();
     } catch (err) {
@@ -184,11 +254,18 @@ export default function Dashboard() {
   const kanbanColumns = groupCardsByStatus(selected?.cards ?? []);
 
   return (
-    <div className="min-h-svh">
+    <div className="min-h-svh flex flex-col">
       <Navbar>
         <Modal
           open={open}
-          onOpenChange={setOpen}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (!next) {
+              setBodyJson("");
+              setMethod(METHODS[0]);
+              setIntervalOption(INTERVALS[1]);
+            }
+          }}
           trigger={<Button size="sm" type="button">Novo monitor</Button>}
           title="Cadastrar monitor"
           description="URL, método, intervalo e status esperado."
@@ -223,10 +300,40 @@ export default function Dashboard() {
               </SelectPopup>
             </Select>
           </Field>
+          {METHODS_WITH_BODY.has(method.value) ? (
+            <Field>
+              <FieldLabel>JSON (Body)</FieldLabel>
+              <Textarea
+                name="body"
+                value={bodyJson}
+                onChange={(e) => setBodyJson(e.target.value)}
+                rows={4}
+                className="font-mono text-xs"
+                placeholder={'{\n  "key": "value"\n}'}
+              />
+            </Field>
+          ) : null}
           <div className="grid grid-cols-3 gap-3">
             <Field>
-              <FieldLabel>Intervalo (s)</FieldLabel>
-              <Input name="intervalSeconds" type="number" min={10} defaultValue={60} required />
+              <FieldLabel>Intervalo</FieldLabel>
+              <Select
+                items={INTERVALS}
+                value={intervalOption}
+                onValueChange={(v) => {
+                  if (v) setIntervalOption(v);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {INTERVALS.map((item) => (
+                    <SelectItem key={item.value} value={item}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             </Field>
             <Field>
               <FieldLabel>Timeout (ms)</FieldLabel>
@@ -240,7 +347,7 @@ export default function Dashboard() {
         </Modal>
       </Navbar>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-8 flex-1 w-full">
 
       {list.length === 0 ? (
         <Empty>
@@ -300,14 +407,35 @@ export default function Dashboard() {
         <section className="mt-8 space-y-4">
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <h2 className="font-heading text-xl">{selected.name}</h2>
-              <p className="mt-3 break-all text-sm text-muted-foreground">
-                {selected.method} {selected.url} · uptime{" "}
-                {selected.stats.pct == null ? "—" : `${selected.stats.pct}%`} · média{" "}
-                {selected.stats.avgMs} ms
+              <div className="flex items-center gap-2">
+                <h2 className="font-heading text-xl">{selected.name}</h2>
+                {!selected.enabled ? <Badge variant="secondary">pausado</Badge> : null}
+              </div>
+              <p className="mt-1 break-all text-sm text-muted-foreground">
+                {selected.method} {selected.url}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={async () => {
+                  try {
+                    const next = !selected.enabled;
+                    await api.patch(selected.id, { enabled: next });
+                    toastManager.add({
+                      title: next ? "Verificações continuadas" : "Verificações pausadas",
+                      type: "success",
+                    });
+                    await refresh();
+                  } catch (err) {
+                    toastManager.add({ title: "Falha", description: String(err), type: "error" });
+                  }
+                }}
+              >
+                {selected.enabled ? "Pausar" : "Continuar"}
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -348,6 +476,103 @@ export default function Dashboard() {
             </div>
           </div>
 
+          <Collapsible defaultOpen className="group">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">Métricas</span>
+              <CollapsibleTrigger
+                render={<Button type="button" variant="ghost" size="icon" />}
+                className="shrink-0 data-panel-open:*:data-[slot=collapsible-indicator]:rotate-180"
+                aria-label="Recolher métricas"
+              >
+                <ChevronDownIcon
+                  className="size-4 transition-transform duration-200"
+                  data-slot="collapsible-indicator"
+                />
+              </CollapsibleTrigger>
+            </div>
+            <CollapsiblePanel className="pt-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Card>
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Disponibilidade e Latência
+                    </CardTitle>
+                  </CardHeader>
+                  <CardPanel className="space-y-3 p-4 pt-0">
+                    <Meter value={selected.stats.pct ?? 0}>
+                      <div className="flex items-center justify-between text-xs">
+                        <MeterLabel>Uptime</MeterLabel>
+                        <span className="font-medium text-foreground">
+                          {selected.stats.pct == null ? "—" : `${selected.stats.pct}%`}
+                        </span>
+                      </div>
+                      <MeterTrack>
+                        <MeterIndicator
+                          className={
+                            selected.stats.pct != null && selected.stats.pct >= 99
+                              ? "bg-emerald-500"
+                              : selected.stats.pct != null && selected.stats.pct >= 95
+                                ? "bg-amber-500"
+                                : "bg-primary"
+                          }
+                        />
+                      </MeterTrack>
+                    </Meter>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Média de resposta</p>
+                      <p className="text-2xl font-bold tracking-tight sm:text-3xl">
+                        {selected.stats.avgMs}{" "}
+                        <span className="text-sm font-normal text-muted-foreground">ms</span>
+                      </p>
+                    </div>
+                  </CardPanel>
+                </Card>
+
+                <Card>
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Incidentes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardPanel className="space-y-3 p-4 pt-0">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total registrado</p>
+                      <p className="text-2xl font-bold tracking-tight sm:text-3xl">
+                        {selected.incidents.length}
+                      </p>
+                    </div>
+                    <div>
+                      {selected.incidents.some((i) => !i.endedAt) ? (
+                        <Badge variant="error">Incidente em aberto</Badge>
+                      ) : (
+                        <Badge variant="success">Sem incidentes abertos</Badge>
+                      )}
+                    </div>
+                  </CardPanel>
+                </Card>
+
+                <Card className="sm:col-span-2 lg:col-span-1">
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Verificações
+                    </CardTitle>
+                  </CardHeader>
+                  <CardPanel className="space-y-3 p-4 pt-0">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total de checks</p>
+                      <p className="text-2xl font-bold tracking-tight sm:text-3xl">
+                        {selected.stats.total}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {selected.stats.ok} sucesso(s) · {selected.intervalSeconds}s intervalo
+                    </p>
+                  </CardPanel>
+                </Card>
+              </div>
+            </CollapsiblePanel>
+          </Collapsible>
+
           <Tabs defaultValue="history">
             <Collapsible defaultOpen className="group">
               <div className="flex items-center gap-2">
@@ -377,7 +602,7 @@ export default function Dashboard() {
                 </CollapsibleTrigger>
               </div>
               <CollapsiblePanel>
-                <TabsPanel value="history" className="mt-4 max-h-96 overflow-auto rounded-lg border">
+                <TabsPanel value="history" className="mt-4 h-96 overflow-auto rounded-lg border">
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
@@ -403,7 +628,7 @@ export default function Dashboard() {
                     </TableBody>
                   </Table>
                 </TabsPanel>
-                <TabsPanel value="incidents" className="mt-4 max-h-96 overflow-auto rounded-lg border">
+                <TabsPanel value="incidents" className="mt-4 h-96 overflow-auto rounded-lg border">
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
@@ -429,7 +654,7 @@ export default function Dashboard() {
                     </TableBody>
                   </Table>
                 </TabsPanel>
-                <TabsPanel value="alerts" className="mt-4 space-y-4">
+                <TabsPanel value="alerts" className="mt-4 h-96 overflow-auto space-y-4">
                   <Form className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-end" onSubmit={onAddAlert}>
                     <Field className="min-w-0 sm:min-w-40">
                       <FieldLabel>Canal</FieldLabel>
@@ -503,7 +728,7 @@ export default function Dashboard() {
                     </TableBody>
                   </Table>
                 </TabsPanel>
-                <TabsPanel value="kanban" className="mt-4 space-y-4">
+                <TabsPanel value="kanban" className="mt-4 h-96 overflow-auto space-y-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
                       Cards por status. Colunas surgem ao criar.
@@ -771,6 +996,7 @@ export default function Dashboard() {
         }}
       />
       </main>
+      <Footer className="mt-10" />
     </div>
   );
 }

@@ -4,11 +4,15 @@ export async function probe(
   url: string,
   method: string,
   timeoutMs: number,
+  body?: string | null,
 ): Promise<ProbeResult> {
   const started = performance.now();
   try {
+    const hasBody = Boolean(body && !["GET", "HEAD"].includes(method.toUpperCase()));
     const res = await fetch(url, {
       method,
+      headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+      body: hasBody ? body! : undefined,
       redirect: "follow",
       signal: AbortSignal.timeout(timeoutMs),
     });

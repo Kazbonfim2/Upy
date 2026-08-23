@@ -22,6 +22,7 @@ monitorRoutes.post("/", async (c) => {
     timeoutMs: number;
     expectedStatus: number;
     enabled: boolean;
+    body?: string | null;
   };
   const [row] = await db.insert(monitors).values(data).returning();
   return c.json(row, 201);

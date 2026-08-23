@@ -31,13 +31,27 @@ try {
 const m = parseMonitor({
   name: "api",
   url: "https://example.com",
-  method: "get",
+  method: "post",
   intervalSeconds: 30,
   timeoutMs: 2000,
   expectedStatus: 204,
+  body: '{"foo":"bar"}',
 });
-assert(m.method === "GET", "method upper");
+assert(m.method === "POST", "method upper");
 assert(m.expectedStatus === 204, "status");
+assert(m.body === '{"foo":"bar"}', "body json");
+
+try {
+  parseMonitor({
+    name: "api",
+    url: "https://example.com",
+    method: "POST",
+    body: "{invalid-json}",
+  });
+  throw new Error("json inválido passou");
+} catch (e) {
+  assert(e instanceof Error && e.message.includes("JSON"), "bloqueou json invalido");
+}
 
 parseAlert({ channel: "discord", target: "https://discord.com/api/webhooks/1/x" });
 parseAlert({ channel: "email", target: "ops@example.com" });

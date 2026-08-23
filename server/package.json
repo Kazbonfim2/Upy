@@ -10,7 +10,8 @@
   "dependencies": {
     "drizzle-orm": "^0.44.4",
     "hono": "^4.9.6",
-    "postgres": "^3.4.7"
+    "postgres": "^3.4.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bun": "latest"
