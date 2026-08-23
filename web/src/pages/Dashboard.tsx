@@ -1,8 +1,13 @@
-import { ActivityIcon } from "lucide-react";
+import { ActivityIcon, ChevronDownIcon } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardPanel, CardTitle } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsiblePanel,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogClose,
@@ -218,7 +223,7 @@ export default function Dashboard() {
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>URL</TableHead>
+                  <TableHead className="w-full max-w-0">URL</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>HTTP</TableHead>
                   <TableHead>Latência</TableHead>
@@ -233,7 +238,7 @@ export default function Dashboard() {
                     onClick={() => setSelectedId(m.id)}
                   >
                     <TableCell className="font-medium">{m.name}</TableCell>
-                    <TableCell className="max-w-xs truncate">{m.url}</TableCell>
+                    <TableCell className="w-full max-w-0 truncate">{m.url}</TableCell>
                     <TableCell>{statusBadge(m)}</TableCell>
                     <TableCell>{m.lastStatusCode ?? "—"}</TableCell>
                     <TableCell>{m.lastLatencyMs != null ? `${m.lastLatencyMs} ms` : "—"}</TableCell>
@@ -248,19 +253,20 @@ export default function Dashboard() {
 
       {selected ? (
         <section className="mt-8 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <h2 className="font-heading text-xl">{selected.name}</h2>
-              <p className="mt-3 text-sm text-muted-foreground">
+              <p className="mt-3 break-all text-sm text-muted-foreground">
                 {selected.method} {selected.url} · uptime{" "}
                 {selected.stats.pct == null ? "—" : `${selected.stats.pct}%`} · média{" "}
                 {selected.stats.avgMs} ms
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 onClick={async () => {
                   try {
                     await api.checkNow(selected.id);
@@ -276,6 +282,7 @@ export default function Dashboard() {
               <Button
                 type="button"
                 variant="destructive"
+                className="w-full sm:w-auto"
                 onClick={async () => {
                   if (!confirm(`Apagar ${selected.name}?`)) return;
                   await api.remove(selected.id);
@@ -290,128 +297,152 @@ export default function Dashboard() {
           </div>
 
           <Tabs defaultValue="history">
-            <TabsList>
-              <TabsTab value="history">Histórico</TabsTab>
-              <TabsTab value="incidents">Incidentes</TabsTab>
-              <TabsTab value="alerts">Alertas</TabsTab>
-            </TabsList>
-            <TabsPanel value="history" className="mt-4 max-h-96 overflow-auto rounded-lg border">
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-background">
-                  <TableRow>
-                    <TableHead>Quando</TableHead>
-                    <TableHead>OK</TableHead>
-                    <TableHead>HTTP</TableHead>
-                    <TableHead>ms</TableHead>
-                    <TableHead>Erro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selected.checks.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>{fmt(c.checkedAt)}</TableCell>
-                      <TableCell>
-                        {c.ok ? <Badge variant="success">sim</Badge> : <Badge variant="error">não</Badge>}
-                      </TableCell>
-                      <TableCell>{c.statusCode ?? "—"}</TableCell>
-                      <TableCell>{c.latencyMs}</TableCell>
-                      <TableCell className="max-w-sm truncate">{c.error ?? "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsPanel>
-            <TabsPanel value="incidents" className="mt-4 max-h-96 overflow-auto rounded-lg border">
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-background">
-                  <TableRow>
-                    <TableHead>Início</TableHead>
-                    <TableHead>Fim</TableHead>
-                    <TableHead>Erro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selected.incidents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3}>Nenhum incidente.</TableCell>
-                    </TableRow>
-                  ) : (
-                    selected.incidents.map((i) => (
-                      <TableRow key={i.id}>
-                        <TableCell>{fmt(i.startedAt)}</TableCell>
-                        <TableCell>{i.endedAt ? fmt(i.endedAt) : "aberto"}</TableCell>
-                        <TableCell>{i.lastError ?? "—"}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TabsPanel>
-            <TabsPanel value="alerts" className="mt-4 space-y-4">
-              <Form className="flex flex-wrap items-end gap-3" onSubmit={onAddAlert}>
-                <Field className="min-w-40">
-                  <FieldLabel>Canal</FieldLabel>
-                  <Select
-                    items={CHANNELS}
-                    value={channel}
-                    onValueChange={(v) => {
-                      if (v) setChannel(v);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectPopup>
-                      {CHANNELS.map((item) => (
-                        <SelectItem key={item.value} value={item}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectPopup>
-                  </Select>
-                </Field>
-                <Field className="min-w-64 flex-1">
-                  <FieldLabel>Destino</FieldLabel>
-                  <Input
-                    name="target"
-                    type="text"
-                    required
-                    placeholder="e-mail, URL do Discord ou webhook"
+            <Collapsible defaultOpen className="group">
+              <div className="flex items-center gap-2">
+                <TabsList className="min-w-0 flex-1 overflow-x-auto">
+                  <TabsTab value="history" className="flex-1">
+                    Histórico
+                  </TabsTab>
+                  <TabsTab value="incidents" className="flex-1">
+                    Incidentes
+                  </TabsTab>
+                  <TabsTab value="alerts" className="flex-1">
+                    Alertas
+                  </TabsTab>
+                </TabsList>
+                <CollapsibleTrigger
+                  render={<Button type="button" variant="ghost" size="icon" />}
+                  className="shrink-0 data-panel-open:*:data-[slot=collapsible-indicator]:rotate-180"
+                  aria-label="Recolher painel"
+                >
+                  <ChevronDownIcon
+                    className="size-4 transition-transform duration-200"
+                    data-slot="collapsible-indicator"
                   />
-                </Field>
-                <Button type="submit">Adicionar</Button>
-              </Form>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Canal</TableHead>
-                    <TableHead>Destino</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selected.alerts.map((a) => (
-                    <TableRow key={a.id}>
-                      <TableCell>{a.channel}</TableCell>
-                      <TableCell className="max-w-md truncate">{a.target}</TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={async () => {
-                            await api.removeAlert(selected.id, a.id);
-                            await refresh();
-                          }}
-                        >
-                          remover
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsPanel>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsiblePanel>
+                <TabsPanel value="history" className="mt-4 max-h-96 overflow-auto rounded-lg border">
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-background">
+                      <TableRow>
+                        <TableHead>Quando</TableHead>
+                        <TableHead>OK</TableHead>
+                        <TableHead>HTTP</TableHead>
+                        <TableHead>ms</TableHead>
+                        <TableHead className="w-full max-w-0">Erro</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selected.checks.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell>{fmt(c.checkedAt)}</TableCell>
+                          <TableCell>
+                            {c.ok ? <Badge variant="success">sim</Badge> : <Badge variant="error">não</Badge>}
+                          </TableCell>
+                          <TableCell>{c.statusCode ?? "—"}</TableCell>
+                          <TableCell>{c.latencyMs}</TableCell>
+                          <TableCell className="w-full max-w-0 truncate">{c.error ?? "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TabsPanel>
+                <TabsPanel value="incidents" className="mt-4 max-h-96 overflow-auto rounded-lg border">
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-background">
+                      <TableRow>
+                        <TableHead>Início</TableHead>
+                        <TableHead>Fim</TableHead>
+                        <TableHead className="w-full max-w-0">Erro</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selected.incidents.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3}>Nenhum incidente.</TableCell>
+                        </TableRow>
+                      ) : (
+                        selected.incidents.map((i) => (
+                          <TableRow key={i.id}>
+                            <TableCell>{fmt(i.startedAt)}</TableCell>
+                            <TableCell>{i.endedAt ? fmt(i.endedAt) : "aberto"}</TableCell>
+                            <TableCell className="w-full max-w-0 truncate">{i.lastError ?? "—"}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TabsPanel>
+                <TabsPanel value="alerts" className="mt-4 space-y-4">
+                  <Form className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-end" onSubmit={onAddAlert}>
+                    <Field className="min-w-0 sm:min-w-40">
+                      <FieldLabel>Canal</FieldLabel>
+                      <Select
+                        items={CHANNELS}
+                        value={channel}
+                        onValueChange={(v) => {
+                          if (v) setChannel(v);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectPopup>
+                          {CHANNELS.map((item) => (
+                            <SelectItem key={item.value} value={item}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectPopup>
+                      </Select>
+                    </Field>
+                    <Field className="min-w-0 flex-1 sm:min-w-64">
+                      <FieldLabel>Destino</FieldLabel>
+                      <Input
+                        name="target"
+                        type="text"
+                        required
+                        placeholder="e-mail, URL do Discord ou webhook"
+                      />
+                    </Field>
+                    <Button type="submit" className="w-full sm:w-auto">
+                      Adicionar
+                    </Button>
+                  </Form>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Canal</TableHead>
+                        <TableHead className="w-full max-w-0">Destino</TableHead>
+                        <TableHead className="w-px" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selected.alerts.map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell>{a.channel}</TableCell>
+                          <TableCell className="w-full max-w-0 truncate">{a.target}</TableCell>
+                          <TableCell className="w-px">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={async () => {
+                                await api.removeAlert(selected.id, a.id);
+                                await refresh();
+                              }}
+                            >
+                              remover
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TabsPanel>
+              </CollapsiblePanel>
+            </Collapsible>
           </Tabs>
         </section>
       ) : null}
