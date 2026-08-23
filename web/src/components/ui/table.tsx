@@ -109,7 +109,7 @@ export function TableHead({
   return (
     <th
       className={cn(
-        "h-10 whitespace-nowrap px-2.5 text-left align-middle font-medium text-muted-foreground leading-none has-[[role=checkbox]]:w-px last:has-[[role=checkbox]]:ps-0 first:has-[[role=checkbox]]:pe-0",
+        "h-11 whitespace-nowrap px-3.5 py-3 text-left align-middle font-medium text-muted-foreground leading-none sm:px-4 sm:py-3.5 has-[[role=checkbox]]:w-px last:has-[[role=checkbox]]:ps-0 first:has-[[role=checkbox]]:pe-0",
         className,
       )}
       data-slot="table-head"
@@ -125,7 +125,7 @@ export function TableCell({
   return (
     <td
       className={cn(
-        "whitespace-nowrap bg-clip-padding p-2.5 text-left in-data-[slot=table-footer]:py-3.5 align-middle leading-none in-data-[variant=card]:first:ps-[calc(--spacing(2.5)-1px)] in-data-[variant=card]:last:pe-[calc(--spacing(2.5)-1px)] has-[[role=checkbox]]:w-px last:has-[[role=checkbox]]:ps-0 first:has-[[role=checkbox]]:pe-0",
+        "whitespace-nowrap bg-clip-padding px-3.5 py-3 text-left align-middle leading-normal sm:px-4 sm:py-3.5 in-data-[slot=table-footer]:py-3.5 in-data-[variant=card]:first:ps-[calc(--spacing(3.5)-1px)] in-data-[variant=card]:last:pe-[calc(--spacing(3.5)-1px)] has-[[role=checkbox]]:w-px last:has-[[role=checkbox]]:ps-0 first:has-[[role=checkbox]]:pe-0",
         className,
       )}
       data-slot="table-cell"

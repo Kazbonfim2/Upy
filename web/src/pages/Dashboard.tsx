@@ -275,12 +275,12 @@ export default function Dashboard() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="w-full max-w-0">URL</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>HTTP</TableHead>
-                  <TableHead>Latência</TableHead>
-                  <TableHead>Último check</TableHead>
+                  <TableHead className="w-1/4">Nome</TableHead>
+                  <TableHead className="w-1/3">URL</TableHead>
+                  <TableHead className="w-28">Status</TableHead>
+                  <TableHead className="w-20">HTTP</TableHead>
+                  <TableHead className="w-28">Latência</TableHead>
+                  <TableHead className="w-40">Último check</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -291,7 +291,7 @@ export default function Dashboard() {
                     onClick={() => setSelectedId(m.id)}
                   >
                     <TableCell className="font-medium">{m.name}</TableCell>
-                    <TableCell className="w-full max-w-0 truncate">{m.url}</TableCell>
+                    <TableCell className="max-w-xs truncate text-muted-foreground">{m.url}</TableCell>
                     <TableCell>{statusBadge(m)}</TableCell>
                     <TableCell>{m.lastStatusCode ?? "—"}</TableCell>
                     <TableCell>{m.lastLatencyMs != null ? `${m.lastLatencyMs} ms` : "—"}</TableCell>
@@ -325,8 +325,8 @@ export default function Dashboard() {
                     await api.checkNow(selected.id);
                     toastManager.add({ title: "Check disparado", type: "success" });
                     await refresh();
-                  } catch (e) {
-                    toastManager.add({ title: "Erro", description: String(e), type: "error" });
+                  } catch (err) {
+                    toastManager.add({ title: "Falha", description: String(err), type: "error" });
                   }
                 }}
               >
@@ -389,11 +389,11 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
-                        <TableHead>Quando</TableHead>
-                        <TableHead>OK</TableHead>
-                        <TableHead>HTTP</TableHead>
-                        <TableHead>ms</TableHead>
-                        <TableHead className="w-full max-w-0">Erro</TableHead>
+                        <TableHead className="w-48">Quando</TableHead>
+                        <TableHead className="w-24">OK</TableHead>
+                        <TableHead className="w-24">HTTP</TableHead>
+                        <TableHead className="w-28">Latência</TableHead>
+                        <TableHead className="w-auto">Erro</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -404,8 +404,8 @@ export default function Dashboard() {
                             {c.ok ? <Badge variant="success">sim</Badge> : <Badge variant="error">não</Badge>}
                           </TableCell>
                           <TableCell>{c.statusCode ?? "—"}</TableCell>
-                          <TableCell>{c.latencyMs}</TableCell>
-                          <TableCell className="w-full max-w-0 truncate">{c.error ?? "—"}</TableCell>
+                          <TableCell>{c.latencyMs} ms</TableCell>
+                          <TableCell className="max-w-md truncate">{c.error ?? "—"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -415,9 +415,9 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
-                        <TableHead>Início</TableHead>
-                        <TableHead>Fim</TableHead>
-                        <TableHead className="w-full max-w-0">Erro</TableHead>
+                        <TableHead className="w-56">Início</TableHead>
+                        <TableHead className="w-56">Fim</TableHead>
+                        <TableHead className="w-auto">Erro</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -430,7 +430,7 @@ export default function Dashboard() {
                           <TableRow key={i.id}>
                             <TableCell>{fmt(i.startedAt)}</TableCell>
                             <TableCell>{i.endedAt ? fmt(i.endedAt) : "aberto"}</TableCell>
-                            <TableCell className="w-full max-w-0 truncate">{i.lastError ?? "—"}</TableCell>
+                            <TableCell className="max-w-md truncate">{i.lastError ?? "—"}</TableCell>
                           </TableRow>
                         ))
                       )}
@@ -476,17 +476,17 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Canal</TableHead>
-                        <TableHead className="w-full max-w-0">Destino</TableHead>
-                        <TableHead className="w-px" />
+                        <TableHead className="w-44">Canal</TableHead>
+                        <TableHead className="w-auto">Destino</TableHead>
+                        <TableHead className="w-28 text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selected.alerts.map((a) => (
                         <TableRow key={a.id}>
-                          <TableCell>{a.channel}</TableCell>
-                          <TableCell className="w-full max-w-0 truncate">{a.target}</TableCell>
-                          <TableCell className="w-px">
+                          <TableCell className="font-medium">{a.channel}</TableCell>
+                          <TableCell className="max-w-md truncate">{a.target}</TableCell>
+                          <TableCell className="text-right">
                             <Button
                               type="button"
                               size="sm"
