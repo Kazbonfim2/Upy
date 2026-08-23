@@ -48,6 +48,7 @@ import {
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toastManager } from "@/components/ui/toast";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { Navbar } from "@/components/Navbar";
 import { api, type CardRow, type Monitor, type MonitorDetail } from "@/lib/api";
 
@@ -99,6 +100,13 @@ export default function Dashboard() {
   const [channel, setChannel] = useState(CHANNELS[1]);
   const [cardOpen, setCardOpen] = useState(false);
   const [viewingCard, setViewingCard] = useState<CardRow | null>(null);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    description?: string;
+    confirmText?: string;
+    variant?: "destructive" | "default";
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     const rows = await api.list();
@@ -334,12 +342,19 @@ export default function Dashboard() {
                 type="button"
                 variant="destructive"
                 className="w-full sm:w-auto"
-                onClick={async () => {
-                  if (!confirm(`Apagar ${selected.name}?`)) return;
-                  await api.remove(selected.id);
-                  setSelectedId(null);
-                  setSelected(null);
-                  await refresh();
+                onClick={() => {
+                  setConfirmState({
+                    title: `Apagar monitor "${selected.name}"?`,
+                    description:
+                      "Todos os checks, incidentes, alertas e cards vinculados a este monitor serão apagados.",
+                    onConfirm: async () => {
+                      await api.remove(selected.id);
+                      setSelectedId(null);
+                      setSelected(null);
+                      toastManager.add({ title: "Monitor apagado", type: "success" });
+                      await refresh();
+                    },
+                  });
                 }}
               >
                 Apagar
@@ -482,9 +497,16 @@ export default function Dashboard() {
                               type="button"
                               size="sm"
                               variant="destructive"
-                              onClick={async () => {
-                                await api.removeAlert(selected.id, a.id);
-                                await refresh();
+                              onClick={() => {
+                                setConfirmState({
+                                  title: `Remover alerta (${a.channel})?`,
+                                  description: `O destino "${a.target}" deixará de receber notificações.`,
+                                  onConfirm: async () => {
+                                    await api.removeAlert(selected.id, a.id);
+                                    toastManager.add({ title: "Alerta removido", type: "success" });
+                                    await refresh();
+                                  },
+                                });
                               }}
                             >
                               remover
@@ -577,19 +599,24 @@ export default function Dashboard() {
                                     size="sm"
                                     variant="destructive"
                                     className="w-full sm:w-auto"
-                                    onClick={async () => {
-                                      if (!confirm(`Apagar card "${card.name}"?`)) return;
-                                      try {
-                                        await api.removeCard(selected.id, card.id);
-                                        toastManager.add({ title: "Card removido", type: "success" });
-                                        await refresh();
-                                      } catch (err) {
-                                        toastManager.add({
-                                          title: "Falha",
-                                          description: String(err),
-                                          type: "error",
-                                        });
-                                      }
+                                    onClick={() => {
+                                      setConfirmState({
+                                        title: `Apagar card "${card.name}"?`,
+                                        description: "Esta ação não pode ser desfeita.",
+                                        onConfirm: async () => {
+                                          try {
+                                            await api.removeCard(selected.id, card.id);
+                                            toastManager.add({ title: "Card removido", type: "success" });
+                                            await refresh();
+                                          } catch (err) {
+                                            toastManager.add({
+                                              title: "Falha",
+                                              description: String(err),
+                                              type: "error",
+                                            });
+                                          }
+                                        },
+                                      });
                                     }}
                                   >
                                     Apagar
@@ -715,6 +742,20 @@ export default function Dashboard() {
           </Tabs>
         </section>
       ) : null}
+
+      <ConfirmModal
+        open={confirmState != null}
+        onOpenChange={(next) => {
+          if (!next) setConfirmState(null);
+        }}
+        title={confirmState?.title ?? ""}
+        description={confirmState?.description}
+        confirmText={confirmState?.confirmText ?? "Apagar"}
+        variant={confirmState?.variant ?? "destructive"}
+        onConfirm={async () => {
+          if (confirmState) await confirmState.onConfirm();
+        }}
+      />
       </main>
     </div>
   );
