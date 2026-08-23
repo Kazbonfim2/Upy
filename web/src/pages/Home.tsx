@@ -6,6 +6,7 @@ import {
   GitBranchIcon,
   ServerIcon,
   ShieldIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,9 +59,15 @@ export default function Home() {
           <p className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
             API & Website Monitor
           </p>
-          <h1 className="mb-6">
+          <h1 className="mb-3">
             <Logo className="text-6xl sm:text-8xl" />
           </h1>
+          <div className="mb-6 flex justify-center">
+            <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs sm:text-sm font-medium">
+              <SparklesIcon className="size-3.5 text-amber-500" />
+              Agora com IA!
+            </Badge>
+          </div>
           <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground text-pretty">
             Cadastre URLs. Um worker verifica disponibilidade e latência. O dashboard mostra o
             estado agora — e o incidente quando algo cai. Código aberto. Você hospeda.

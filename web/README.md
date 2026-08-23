@@ -1,32 +1,45 @@
-# React + TypeScript + Vite
+# Upy — Web Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Interface web do Upy para gerenciamento de monitores, visualização de status em tempo real, Kanban de cards e histórico de incidentes.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **TypeScript**
+- **Vite** (bundler rápido)
+- **Tailwind CSS v4** + **Base UI**
+- **Lucide React** (ícones)
+- **Oxlint** (linter ultra-rápido)
 
-## React Compiler
+## Como rodar
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Desenvolvimento local
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+bun install
+bun run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Acesse em `http://localhost:5173`.
+
+### Build de produção
+
+```bash
+bun run build
+```
+
+Gera os assets otimizados no diretório `dist/`.
+
+### Linting
+
+```bash
+bun run lint
+```
+
+## Variáveis de ambiente
+
+Crie um arquivo `.env` baseado nas configurações desejadas:
+
+```env
+VITE_API_URL=http://localhost:3000
+```
+
