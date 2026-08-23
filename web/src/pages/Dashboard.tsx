@@ -1,4 +1,4 @@
-import { ActivityIcon, ChevronDownIcon } from "lucide-react";
+import { ActivityIcon, ChevronDownIcon, SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -544,13 +544,20 @@ export default function Dashboard() {
                                 }}
                               >
                                 <div className="flex items-start justify-between gap-2">
-                                  <h4
-                                    className={`break-words text-sm font-medium ${
-                                      card.resolved ? "line-through" : ""
-                                    }`}
-                                  >
-                                    {card.name}
-                                  </h4>
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    {card.source === "ai" ? (
+                                      <span title="Gerado por IA" className="inline-flex shrink-0 text-amber-500">
+                                        <SparklesIcon className="size-3.5" />
+                                      </span>
+                                    ) : null}
+                                    <h4
+                                      className={`break-words text-sm font-medium ${
+                                        card.resolved ? "line-through" : ""
+                                      }`}
+                                    >
+                                      {card.name}
+                                    </h4>
+                                  </div>
                                   {card.resolved ? (
                                     <Badge variant="success" className="shrink-0">
                                       resolvido
@@ -586,17 +593,9 @@ export default function Dashboard() {
                                         title: `Apagar card "${card.name}"?`,
                                         description: "Esta ação não pode ser desfeita.",
                                         onConfirm: async () => {
-                                          try {
-                                            await api.removeCard(selected.id, card.id);
-                                            toastManager.add({ title: "Card removido", type: "success" });
-                                            await refresh();
-                                          } catch (err) {
-                                            toastManager.add({
-                                              title: "Falha",
-                                              description: String(err),
-                                              type: "error",
-                                            });
-                                          }
+                                          await api.removeCard(selected.id, card.id);
+                                          toastManager.add({ title: "Card removido", type: "success" });
+                                          await refresh();
                                         },
                                       });
                                     }}
@@ -665,6 +664,19 @@ export default function Dashboard() {
                           </p>
                         </div>
                         <div>
+                          <p className="text-muted-foreground">Origem</p>
+                          <p className="mt-1 flex items-center gap-1.5 font-medium">
+                            {viewingCard.source === "ai" ? (
+                              <>
+                                <SparklesIcon className="size-3.5 text-amber-500" />
+                                IA (Automático)
+                              </>
+                            ) : (
+                              "Manual"
+                            )}
+                          </p>
+                        </div>
+                        <div>
                           <p className="text-muted-foreground">Criado em</p>
                           <p className="mt-1">{fmt(viewingCard.createdAt)}</p>
                         </div>
@@ -726,7 +738,15 @@ export default function Dashboard() {
         confirmText={confirmState?.confirmText ?? "Apagar"}
         variant={confirmState?.variant ?? "destructive"}
         onConfirm={async () => {
-          if (confirmState) await confirmState.onConfirm();
+          const action = confirmState?.onConfirm;
+          setConfirmState(null);
+          if (action) {
+            try {
+              await action();
+            } catch (err) {
+              toastManager.add({ title: "Falha", description: String(err), type: "error" });
+            }
+          }
         }}
       />
       </main>

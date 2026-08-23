@@ -48,8 +48,11 @@ export function ConfirmModal({
             type="button"
             variant={variant}
             onClick={async () => {
-              await onConfirm();
-              onOpenChange(false);
+              try {
+                await onConfirm();
+              } finally {
+                onOpenChange(false);
+              }
             }}
           >
             {confirmText}
