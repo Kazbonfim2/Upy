@@ -70,3 +70,35 @@ export function parseAlert(body: Record<string, unknown>): { channel: string; ta
   }
   return { channel, target };
 }
+
+export type CardInput = {
+  name: string;
+  status: string;
+  description: string;
+  resolved: boolean;
+};
+
+export function parseCard(body: Record<string, unknown>, partial = false): Partial<CardInput> {
+  const out: Partial<CardInput> = {};
+  if (!partial || "name" in body) {
+    if (typeof body.name !== "string" || !body.name.trim()) throw new Error("name obrigatório");
+    const name = body.name.trim();
+    if (name.length > 100) throw new Error("name máx. 100 caracteres");
+    out.name = name;
+  }
+  if (!partial || "status" in body) {
+    if (typeof body.status !== "string" || !body.status.trim()) throw new Error("status obrigatório");
+    const status = body.status.trim();
+    if (status.length > 100) throw new Error("status máx. 100 caracteres");
+    out.status = status;
+  }
+  if (!partial || "description" in body) {
+    const description = body.description == null ? "" : String(body.description).trim();
+    if (description.length > 300) throw new Error("description máx. 300 caracteres");
+    out.description = description;
+  }
+  if (!partial || "resolved" in body) {
+    out.resolved = body.resolved === undefined ? false : Boolean(body.resolved);
+  }
+  return out;
+}

@@ -6,3 +6,4 @@ web/dist
 server/node_modules
 web/node_modules
 PROJECT.mdc
+.cursor

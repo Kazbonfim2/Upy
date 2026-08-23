@@ -52,11 +52,22 @@ export type AlertRow = {
   target: string;
 };
 
+export type CardRow = {
+  id: number;
+  monitorId: number;
+  name: string;
+  status: string;
+  description: string;
+  resolved: boolean;
+  createdAt: string;
+};
+
 export type MonitorDetail = Monitor & {
   stats: { total: number; ok: number; pct: number | null; avgMs: number };
   checks: CheckRow[];
   incidents: Incident[];
   alerts: AlertRow[];
+  cards: CardRow[];
 };
 
 export const api = {
@@ -77,4 +88,17 @@ export const api = {
     }),
   removeAlert: (id: number, alertId: number) =>
     req<{ ok: boolean }>(`/api/monitors/${id}/alerts/${alertId}`, { method: "DELETE" }),
+  listCards: (id: number) => req<CardRow[]>(`/api/monitors/${id}/cards`),
+  addCard: (id: number, body: unknown) =>
+    req<CardRow>(`/api/monitors/${id}/cards`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  patchCard: (id: number, cardId: number, body: unknown) =>
+    req<CardRow>(`/api/monitors/${id}/cards/${cardId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  removeCard: (id: number, cardId: number) =>
+    req<{ ok: boolean }>(`/api/monitors/${id}/cards/${cardId}`, { method: "DELETE" }),
 };

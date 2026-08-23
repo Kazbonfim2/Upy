@@ -56,6 +56,19 @@ export async function ensureSchema() {
       created_at timestamptz NOT NULL DEFAULT now()
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS cards (
+      id serial PRIMARY KEY,
+      monitor_id integer NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+      name text NOT NULL,
+      status text NOT NULL,
+      description text NOT NULL DEFAULT '',
+      resolved boolean NOT NULL DEFAULT false,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`ALTER TABLE cards ADD COLUMN IF NOT EXISTS resolved boolean NOT NULL DEFAULT false`;
   await sql`CREATE INDEX IF NOT EXISTS checks_monitor_checked_idx ON checks (monitor_id, checked_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS incidents_monitor_open_idx ON incidents (monitor_id) WHERE ended_at IS NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS cards_monitor_idx ON cards (monitor_id)`;
 }

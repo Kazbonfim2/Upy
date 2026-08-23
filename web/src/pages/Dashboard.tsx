@@ -46,9 +46,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { toastManager } from "@/components/ui/toast";
 import { Navbar } from "@/components/Navbar";
-import { api, type Monitor, type MonitorDetail } from "@/lib/api";
+import { api, type CardRow, type Monitor, type MonitorDetail } from "@/lib/api";
 
 const METHODS = [
   { label: "GET", value: "GET" },
@@ -76,6 +77,19 @@ function fmt(iso: string | null) {
   return new Date(iso).toLocaleString("pt-BR");
 }
 
+function groupCardsByStatus(cards: CardRow[]) {
+  const order: string[] = [];
+  const map = new Map<string, CardRow[]>();
+  for (const card of cards) {
+    if (!map.has(card.status)) {
+      map.set(card.status, []);
+      order.push(card.status);
+    }
+    map.get(card.status)!.push(card);
+  }
+  return order.map((status) => ({ status, cards: map.get(status)! }));
+}
+
 export default function Dashboard() {
   const [list, setList] = useState<Monitor[]>([]);
   const [open, setOpen] = useState(false);
@@ -83,6 +97,8 @@ export default function Dashboard() {
   const [selected, setSelected] = useState<MonitorDetail | null>(null);
   const [method, setMethod] = useState(METHODS[0]);
   const [channel, setChannel] = useState(CHANNELS[1]);
+  const [cardOpen, setCardOpen] = useState(false);
+  const [viewingCard, setViewingCard] = useState<CardRow | null>(null);
 
   const refresh = useCallback(async () => {
     const rows = await api.list();
@@ -129,6 +145,41 @@ export default function Dashboard() {
       toastManager.add({ title: "Falha", description: String(err), type: "error" });
     }
   }
+
+  async function onSaveCard(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!selected) return;
+    const fd = new FormData(e.currentTarget);
+    try {
+      await api.addCard(selected.id, {
+        name: fd.get("name"),
+        status: fd.get("status"),
+        description: fd.get("description"),
+      });
+      toastManager.add({ title: "Card criado", type: "success" });
+      setCardOpen(false);
+      await refresh();
+    } catch (err) {
+      toastManager.add({ title: "Falha", description: String(err), type: "error" });
+    }
+  }
+
+  async function onToggleResolved(card: CardRow) {
+    if (!selected) return;
+    try {
+      const updated = await api.patchCard(selected.id, card.id, { resolved: !card.resolved });
+      toastManager.add({
+        title: updated.resolved ? "Card resolvido" : "Card reaberto",
+        type: "success",
+      });
+      await refresh();
+      if (viewingCard?.id === card.id) setViewingCard(updated);
+    } catch (err) {
+      toastManager.add({ title: "Falha", description: String(err), type: "error" });
+    }
+  }
+
+  const kanbanColumns = groupCardsByStatus(selected?.cards ?? []);
 
   return (
     <div className="min-h-svh">
@@ -309,6 +360,9 @@ export default function Dashboard() {
                   <TabsTab value="alerts" className="flex-1">
                     Alertas
                   </TabsTab>
+                  <TabsTab value="kanban" className="flex-1">
+                    Kanban
+                  </TabsTab>
                 </TabsList>
                 <CollapsibleTrigger
                   render={<Button type="button" variant="ghost" size="icon" />}
@@ -440,6 +494,221 @@ export default function Dashboard() {
                       ))}
                     </TableBody>
                   </Table>
+                </TabsPanel>
+                <TabsPanel value="kanban" className="mt-4 space-y-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Cards por status. Colunas surgem ao criar.
+                    </p>
+                    <Button
+                      type="button"
+                      className="w-full sm:w-auto"
+                      onClick={() => setCardOpen(true)}
+                    >
+                      Novo card
+                    </Button>
+                  </div>
+
+                  {kanbanColumns.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum card ainda.</p>
+                  ) : (
+                    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+                      {kanbanColumns.map((col) => (
+                        <div
+                          key={col.status}
+                          className="flex w-[85vw] max-w-72 shrink-0 flex-col gap-2 rounded-lg border bg-muted/40 p-2 sm:w-72"
+                        >
+                          <div className="flex items-center justify-between gap-2 px-1 pt-1">
+                            <h3 className="truncate text-sm font-medium">{col.status}</h3>
+                            <Badge variant="secondary">{col.cards.length}</Badge>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {col.cards.map((card) => (
+                              <article
+                                key={card.id}
+                                role="button"
+                                tabIndex={0}
+                                className={`cursor-pointer rounded-md border bg-background p-3 text-left shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                                  card.resolved ? "opacity-60" : ""
+                                }`}
+                                onClick={() => setViewingCard(card)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setViewingCard(card);
+                                  }
+                                }}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4
+                                    className={`break-words text-sm font-medium ${
+                                      card.resolved ? "line-through" : ""
+                                    }`}
+                                  >
+                                    {card.name}
+                                  </h4>
+                                  {card.resolved ? (
+                                    <Badge variant="success" className="shrink-0">
+                                      resolvido
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                                {card.description ? (
+                                  <p className="mt-2 line-clamp-3 break-words text-xs text-muted-foreground">
+                                    {card.description}
+                                  </p>
+                                ) : null}
+                                <div
+                                  className="mt-3 flex flex-col gap-2 sm:flex-row"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                >
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                    onClick={() => onToggleResolved(card)}
+                                  >
+                                    {card.resolved ? "Reabrir" : "Resolver"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    className="w-full sm:w-auto"
+                                    onClick={async () => {
+                                      if (!confirm(`Apagar card "${card.name}"?`)) return;
+                                      try {
+                                        await api.removeCard(selected.id, card.id);
+                                        toastManager.add({ title: "Card removido", type: "success" });
+                                        await refresh();
+                                      } catch (err) {
+                                        toastManager.add({
+                                          title: "Falha",
+                                          description: String(err),
+                                          type: "error",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Apagar
+                                  </Button>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <Dialog
+                    open={viewingCard != null}
+                    onOpenChange={(next) => {
+                      if (!next) setViewingCard(null);
+                    }}
+                  >
+                    <DialogPopup>
+                      <DialogHeader>
+                        <DialogTitle>{viewingCard?.name}</DialogTitle>
+                        <DialogDescription>Detalhes do card (somente leitura).</DialogDescription>
+                      </DialogHeader>
+                      {viewingCard ? (
+                        <DialogPanel className="grid gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Status</p>
+                            <p className="mt-1 break-words font-medium">{viewingCard.status}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Situação</p>
+                            <p className="mt-1">
+                              {viewingCard.resolved ? (
+                                <Badge variant="success">resolvido</Badge>
+                              ) : (
+                                <Badge variant="secondary">aberto</Badge>
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Descrição</p>
+                            <p className="mt-1 break-words whitespace-pre-wrap">
+                              {viewingCard.description || "—"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Criado em</p>
+                            <p className="mt-1">{fmt(viewingCard.createdAt)}</p>
+                          </div>
+                        </DialogPanel>
+                      ) : null}
+                      <DialogFooter className="flex-col gap-2 sm:flex-row">
+                        {viewingCard ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={() => onToggleResolved(viewingCard)}
+                          >
+                            {viewingCard.resolved ? "Reabrir" : "Resolver"}
+                          </Button>
+                        ) : null}
+                        <DialogClose render={<Button type="button" variant="ghost" className="w-full sm:w-auto" />}>
+                          Fechar
+                        </DialogClose>
+                      </DialogFooter>
+                    </DialogPopup>
+                  </Dialog>
+
+                  <Dialog open={cardOpen} onOpenChange={setCardOpen}>
+                    <DialogPopup>
+                      <DialogHeader>
+                        <DialogTitle>Novo card</DialogTitle>
+                        <DialogDescription>
+                          Nome e status até 100 caracteres; descrição até 300.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <Form className="contents" onSubmit={onSaveCard}>
+                        <DialogPanel className="grid gap-4">
+                          <Field>
+                            <FieldLabel>Nome</FieldLabel>
+                            <Input
+                              name="name"
+                              type="text"
+                              required
+                              maxLength={100}
+                              placeholder="Ex.: Latência alta"
+                            />
+                          </Field>
+                          <Field>
+                            <FieldLabel>Status</FieldLabel>
+                            <Input
+                              name="status"
+                              type="text"
+                              required
+                              maxLength={100}
+                              placeholder="Ex.: 200, backlog, done"
+                            />
+                          </Field>
+                          <Field>
+                            <FieldLabel>Descrição</FieldLabel>
+                            <Textarea
+                              name="description"
+                              maxLength={300}
+                              rows={4}
+                              placeholder="Detalhe opcional"
+                            />
+                          </Field>
+                        </DialogPanel>
+                        <DialogFooter>
+                          <DialogClose render={<Button type="button" variant="ghost" />}>
+                            Cancelar
+                          </DialogClose>
+                          <Button type="submit">Salvar</Button>
+                        </DialogFooter>
+                      </Form>
+                    </DialogPopup>
+                  </Dialog>
                 </TabsPanel>
               </CollapsiblePanel>
             </Collapsible>

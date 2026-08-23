@@ -55,3 +55,15 @@ export const alerts = pgTable("alerts", {
   target: text("target").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const cards = pgTable("cards", {
+  id: serial("id").primaryKey(),
+  monitorId: integer("monitor_id")
+    .notNull()
+    .references(() => monitors.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  status: text("status").notNull(),
+  description: text("description").notNull().default(""),
+  resolved: boolean("resolved").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
