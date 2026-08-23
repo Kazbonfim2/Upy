@@ -8,17 +8,7 @@ import {
   CollapsiblePanel,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Modal } from "@/components/Modal";
 import {
   Empty,
   EmptyContent,
@@ -192,66 +182,58 @@ export default function Dashboard() {
   return (
     <div className="min-h-svh">
       <Navbar>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button size="sm" type="button" />}>Novo monitor</DialogTrigger>
-          <DialogPopup>
-            <DialogHeader>
-              <DialogTitle>Cadastrar monitor</DialogTitle>
-              <DialogDescription>URL, método, intervalo e status esperado.</DialogDescription>
-            </DialogHeader>
-            <Form className="contents" onSubmit={onCreate}>
-              <DialogPanel className="grid gap-4">
-                <Field>
-                  <FieldLabel>Nome</FieldLabel>
-                  <Input name="name" type="text" required placeholder="API produção" />
-                </Field>
-                <Field>
-                  <FieldLabel>URL</FieldLabel>
-                  <Input name="url" type="url" required placeholder="https://exemplo.com/health" />
-                </Field>
-                <Field>
-                  <FieldLabel>Método</FieldLabel>
-                  <Select
-                    items={METHODS}
-                    value={method}
-                    onValueChange={(v) => {
-                      if (v) setMethod(v);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectPopup>
-                      {METHODS.map((item) => (
-                        <SelectItem key={item.value} value={item}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectPopup>
-                  </Select>
-                </Field>
-                <div className="grid grid-cols-3 gap-3">
-                  <Field>
-                    <FieldLabel>Intervalo (s)</FieldLabel>
-                    <Input name="intervalSeconds" type="number" min={10} defaultValue={60} required />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Timeout (ms)</FieldLabel>
-                    <Input name="timeoutMs" type="number" min={500} defaultValue={5000} required />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Status</FieldLabel>
-                    <Input name="expectedStatus" type="number" min={100} max={599} defaultValue={200} required />
-                  </Field>
-                </div>
-              </DialogPanel>
-              <DialogFooter>
-                <DialogClose render={<Button type="button" variant="ghost" />}>Cancelar</DialogClose>
-                <Button type="submit">Salvar</Button>
-              </DialogFooter>
-            </Form>
-          </DialogPopup>
-        </Dialog>
+        <Modal
+          open={open}
+          onOpenChange={setOpen}
+          trigger={<Button size="sm" type="button">Novo monitor</Button>}
+          title="Cadastrar monitor"
+          description="URL, método, intervalo e status esperado."
+          onSubmit={onCreate}
+        >
+          <Field>
+            <FieldLabel>Nome</FieldLabel>
+            <Input name="name" type="text" required placeholder="API produção" />
+          </Field>
+          <Field>
+            <FieldLabel>URL</FieldLabel>
+            <Input name="url" type="url" required placeholder="https://exemplo.com/health" />
+          </Field>
+          <Field>
+            <FieldLabel>Método</FieldLabel>
+            <Select
+              items={METHODS}
+              value={method}
+              onValueChange={(v) => {
+                if (v) setMethod(v);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {METHODS.map((item) => (
+                  <SelectItem key={item.value} value={item}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+          </Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field>
+              <FieldLabel>Intervalo (s)</FieldLabel>
+              <Input name="intervalSeconds" type="number" min={10} defaultValue={60} required />
+            </Field>
+            <Field>
+              <FieldLabel>Timeout (ms)</FieldLabel>
+              <Input name="timeoutMs" type="number" min={500} defaultValue={5000} required />
+            </Field>
+            <Field>
+              <FieldLabel>Status</FieldLabel>
+              <Input name="expectedStatus" type="number" min={100} max={599} defaultValue={200} required />
+            </Field>
+          </div>
+        </Modal>
       </Navbar>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
@@ -630,46 +612,15 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  <Dialog
+                  <Modal
                     open={viewingCard != null}
                     onOpenChange={(next) => {
                       if (!next) setViewingCard(null);
                     }}
-                  >
-                    <DialogPopup>
-                      <DialogHeader>
-                        <DialogTitle>{viewingCard?.name}</DialogTitle>
-                        <DialogDescription>Detalhes do card (somente leitura).</DialogDescription>
-                      </DialogHeader>
-                      {viewingCard ? (
-                        <DialogPanel className="grid gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Status</p>
-                            <p className="mt-1 break-words font-medium">{viewingCard.status}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Situação</p>
-                            <p className="mt-1">
-                              {viewingCard.resolved ? (
-                                <Badge variant="success">resolvido</Badge>
-                              ) : (
-                                <Badge variant="secondary">aberto</Badge>
-                              )}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Descrição</p>
-                            <p className="mt-1 break-words whitespace-pre-wrap">
-                              {viewingCard.description || "—"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Criado em</p>
-                            <p className="mt-1">{fmt(viewingCard.createdAt)}</p>
-                          </div>
-                        </DialogPanel>
-                      ) : null}
-                      <DialogFooter className="flex-col gap-2 sm:flex-row">
+                    title={viewingCard?.name}
+                    description="Detalhes do card (somente leitura)."
+                    footer={
+                      <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
                         {viewingCard ? (
                           <Button
                             type="button"
@@ -680,62 +631,84 @@ export default function Dashboard() {
                             {viewingCard.resolved ? "Reabrir" : "Resolver"}
                           </Button>
                         ) : null}
-                        <DialogClose render={<Button type="button" variant="ghost" className="w-full sm:w-auto" />}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="w-full sm:w-auto"
+                          onClick={() => setViewingCard(null)}
+                        >
                           Fechar
-                        </DialogClose>
-                      </DialogFooter>
-                    </DialogPopup>
-                  </Dialog>
+                        </Button>
+                      </div>
+                    }
+                  >
+                    {viewingCard ? (
+                      <div className="grid gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Status</p>
+                          <p className="mt-1 break-words font-medium">{viewingCard.status}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Situação</p>
+                          <p className="mt-1">
+                            {viewingCard.resolved ? (
+                              <Badge variant="success">resolvido</Badge>
+                            ) : (
+                              <Badge variant="secondary">aberto</Badge>
+                            )}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Descrição</p>
+                          <p className="mt-1 break-words whitespace-pre-wrap">
+                            {viewingCard.description || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Criado em</p>
+                          <p className="mt-1">{fmt(viewingCard.createdAt)}</p>
+                        </div>
+                      </div>
+                    ) : null}
+                  </Modal>
 
-                  <Dialog open={cardOpen} onOpenChange={setCardOpen}>
-                    <DialogPopup>
-                      <DialogHeader>
-                        <DialogTitle>Novo card</DialogTitle>
-                        <DialogDescription>
-                          Nome e status até 100 caracteres; descrição até 300.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <Form className="contents" onSubmit={onSaveCard}>
-                        <DialogPanel className="grid gap-4">
-                          <Field>
-                            <FieldLabel>Nome</FieldLabel>
-                            <Input
-                              name="name"
-                              type="text"
-                              required
-                              maxLength={100}
-                              placeholder="Ex.: Latência alta"
-                            />
-                          </Field>
-                          <Field>
-                            <FieldLabel>Status</FieldLabel>
-                            <Input
-                              name="status"
-                              type="text"
-                              required
-                              maxLength={100}
-                              placeholder="Ex.: 200, backlog, done"
-                            />
-                          </Field>
-                          <Field>
-                            <FieldLabel>Descrição</FieldLabel>
-                            <Textarea
-                              name="description"
-                              maxLength={300}
-                              rows={4}
-                              placeholder="Detalhe opcional"
-                            />
-                          </Field>
-                        </DialogPanel>
-                        <DialogFooter>
-                          <DialogClose render={<Button type="button" variant="ghost" />}>
-                            Cancelar
-                          </DialogClose>
-                          <Button type="submit">Salvar</Button>
-                        </DialogFooter>
-                      </Form>
-                    </DialogPopup>
-                  </Dialog>
+                  <Modal
+                    open={cardOpen}
+                    onOpenChange={setCardOpen}
+                    title="Novo card"
+                    description="Nome e status até 100 caracteres; descrição até 300."
+                    onSubmit={onSaveCard}
+                  >
+                    <Field>
+                      <FieldLabel>Nome</FieldLabel>
+                      <Input
+                        name="name"
+                        type="text"
+                        required
+                        maxLength={100}
+                        placeholder="Ex.: Latência alta"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Status</FieldLabel>
+                      <Input
+                        name="status"
+                        type="text"
+                        required
+                        maxLength={100}
+                        placeholder="Ex.: 200, backlog, done"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Descrição</FieldLabel>
+                      <Textarea
+                        name="description"
+                        maxLength={300}
+                        rows={4}
+                        placeholder="Detalhe opcional"
+                      />
+                    </Field>
+                  </Modal>
                 </TabsPanel>
               </CollapsiblePanel>
             </Collapsible>
