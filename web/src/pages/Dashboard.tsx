@@ -133,6 +133,10 @@ export default function Dashboard() {
   const [method, setMethod] = useState(METHODS[0]);
   const [intervalOption, setIntervalOption] = useState(INTERVALS[1]);
   const [bodyJson, setBodyJson] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editMethod, setEditMethod] = useState(METHODS[0]);
+  const [editInterval, setEditInterval] = useState(INTERVALS[1]);
+  const [editBodyJson, setEditBodyJson] = useState("");
   const [channel, setChannel] = useState(CHANNELS[1]);
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
@@ -156,6 +160,59 @@ export default function Dashboard() {
     const id = setInterval(() => refresh().catch(() => {}), 10_000);
     return () => clearInterval(id);
   }, [refresh]);
+
+  function startEdit() {
+    if (!selected) return;
+    const foundMethod = METHODS.find((m) => m.value === selected.method) || METHODS[0];
+    const foundInterval = INTERVALS.find((i) => i.value === selected.intervalSeconds) || INTERVALS[1];
+    setEditMethod(foundMethod);
+    setEditInterval(foundInterval);
+    setEditBodyJson(selected.body ?? "");
+    setEditOpen(true);
+  }
+
+  async function onEdit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!selected) return;
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const hasBody = METHODS_WITH_BODY.has(editMethod.value);
+    const parsed = createMonitorSchema.safeParse({
+      name: fd.get("name"),
+      url: fd.get("url"),
+      method: editMethod.value,
+      intervalSeconds: editInterval.value,
+      timeoutMs: fd.get("timeoutMs"),
+      expectedStatus: fd.get("expectedStatus"),
+      body: hasBody ? editBodyJson : undefined,
+    });
+
+    if (!parsed.success) {
+      toastManager.add({
+        title: "Erro de validação",
+        description: parsed.error.issues[0]?.message || "Verifique os campos informados.",
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      await api.patch(selected.id, {
+        name: parsed.data.name,
+        url: parsed.data.url,
+        method: parsed.data.method,
+        intervalSeconds: parsed.data.intervalSeconds,
+        timeoutMs: parsed.data.timeoutMs,
+        expectedStatus: parsed.data.expectedStatus,
+        body: hasBody && parsed.data.body?.trim() ? parsed.data.body.trim() : null,
+      });
+      setEditOpen(false);
+      toastManager.add({ title: "Monitor atualizado", type: "success" });
+      await refresh();
+    } catch (err) {
+      toastManager.add({ title: "Falha", description: String(err), type: "error" });
+    }
+  }
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -455,6 +512,14 @@ export default function Dashboard() {
               </Button>
               <Button
                 type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={startEdit}
+              >
+                Editar
+              </Button>
+              <Button
+                type="button"
                 variant="destructive"
                 className="w-full sm:w-auto"
                 onClick={() => {
@@ -493,13 +558,13 @@ export default function Dashboard() {
             </div>
             <CollapsiblePanel className="pt-2">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Card>
+                <Card className="flex flex-col justify-between">
                   <CardHeader className="p-4 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
                       Disponibilidade e Latência
                     </CardTitle>
                   </CardHeader>
-                  <CardPanel className="space-y-3 p-4 pt-0">
+                  <CardPanel className="flex flex-1 flex-col justify-between gap-3 p-4 pt-0">
                     <Meter value={selected.stats.pct ?? 0}>
                       <div className="flex items-center justify-between text-xs">
                         <MeterLabel>Uptime</MeterLabel>
@@ -519,7 +584,7 @@ export default function Dashboard() {
                         />
                       </MeterTrack>
                     </Meter>
-                    <div className="flex items-end justify-between">
+                    <div className="flex items-end justify-between gap-2">
                       <div>
                         <p className="text-xs text-muted-foreground">Média de resposta</p>
                         <p className="text-2xl font-bold tracking-tight sm:text-3xl">
@@ -548,45 +613,87 @@ export default function Dashboard() {
                   </CardPanel>
                 </Card>
 
-                <Card>
+                <Card className="flex flex-col justify-between">
                   <CardHeader className="p-4 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
                       Incidentes
                     </CardTitle>
                   </CardHeader>
-                  <CardPanel className="space-y-3 p-4 pt-0">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total registrado</p>
-                      <p className="text-2xl font-bold tracking-tight sm:text-3xl">
-                        {selected.incidents.length}
-                      </p>
-                    </div>
-                    <div>
-                      {selected.incidents.some((i) => !i.endedAt) ? (
-                        <Badge variant="error">Incidente em aberto</Badge>
-                      ) : (
-                        <Badge variant="success">Sem incidentes abertos</Badge>
-                      )}
+                  <CardPanel className="flex flex-1 flex-col justify-between gap-3 p-4 pt-0">
+                    <Meter value={selected.incidents.some((i) => !i.endedAt) ? 100 : 0}>
+                      <div className="flex items-center justify-between text-xs">
+                        <MeterLabel>Status</MeterLabel>
+                        <span className="font-medium text-foreground">
+                          {selected.incidents.some((i) => !i.endedAt) ? "Instável" : "Estável"}
+                        </span>
+                      </div>
+                      <MeterTrack>
+                        <MeterIndicator
+                          className={
+                            selected.incidents.some((i) => !i.endedAt)
+                              ? "bg-rose-500"
+                              : "bg-emerald-500"
+                          }
+                        />
+                      </MeterTrack>
+                    </Meter>
+                    <div className="flex items-end justify-between gap-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total registrado</p>
+                        <p className="text-2xl font-bold tracking-tight sm:text-3xl">
+                          {selected.incidents.length}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          selected.incidents.some((i) => !i.endedAt) ? "error" : "success"
+                        }
+                      >
+                        {selected.incidents.some((i) => !i.endedAt)
+                          ? "Incidente aberto"
+                          : "Sem incidentes"}
+                      </Badge>
                     </div>
                   </CardPanel>
                 </Card>
 
-                <Card className="sm:col-span-2 lg:col-span-1">
+                <Card className="flex flex-col justify-between sm:col-span-2 lg:col-span-1">
                   <CardHeader className="p-4 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
                       Verificações
                     </CardTitle>
                   </CardHeader>
-                  <CardPanel className="space-y-3 p-4 pt-0">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total de checks</p>
-                      <p className="text-2xl font-bold tracking-tight sm:text-3xl">
-                        {selected.stats.total}
-                      </p>
+                  <CardPanel className="flex flex-1 flex-col justify-between gap-3 p-4 pt-0">
+                    <Meter
+                      value={
+                        selected.stats.total > 0
+                          ? Math.round((selected.stats.ok / selected.stats.total) * 100)
+                          : 0
+                      }
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <MeterLabel>Taxa de sucesso</MeterLabel>
+                        <span className="font-medium text-foreground">
+                          {selected.stats.total > 0
+                            ? `${Math.round((selected.stats.ok / selected.stats.total) * 100)}%`
+                            : "—"}
+                        </span>
+                      </div>
+                      <MeterTrack>
+                        <MeterIndicator className="bg-primary" />
+                      </MeterTrack>
+                    </Meter>
+                    <div className="flex items-end justify-between gap-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total de checks</p>
+                        <p className="text-2xl font-bold tracking-tight sm:text-3xl">
+                          {selected.stats.total}
+                        </p>
+                      </div>
+                      <Badge variant="outline">
+                        {selected.intervalSeconds}s intervalo
+                      </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {selected.stats.ok} sucesso(s) · {selected.intervalSeconds}s intervalo
-                    </p>
                   </CardPanel>
                 </Card>
               </div>
@@ -991,6 +1098,89 @@ export default function Dashboard() {
               </CollapsiblePanel>
             </Collapsible>
           </Tabs>
+
+          <Modal
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            title={`Editar monitor: ${selected.name}`}
+            description="Altere nome, URL, método, intervalo ou status esperado."
+            confirmText="Salvar alterações"
+            onSubmit={onEdit}
+          >
+            <Field>
+              <FieldLabel>Nome</FieldLabel>
+              <Input name="name" type="text" defaultValue={selected.name} required />
+            </Field>
+            <Field>
+              <FieldLabel>URL</FieldLabel>
+              <Input name="url" type="url" defaultValue={selected.url} required />
+            </Field>
+            <Field>
+              <FieldLabel>Método</FieldLabel>
+              <Select
+                items={METHODS}
+                value={editMethod}
+                onValueChange={(v) => {
+                  if (v) setEditMethod(v);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {METHODS.map((item) => (
+                    <SelectItem key={item.value} value={item}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Field>
+            {METHODS_WITH_BODY.has(editMethod.value) ? (
+              <Field>
+                <FieldLabel>JSON (Body)</FieldLabel>
+                <Textarea
+                  name="body"
+                  value={editBodyJson}
+                  onChange={(e) => setEditBodyJson(e.target.value)}
+                  rows={4}
+                  className="font-mono text-xs"
+                  placeholder={'{\n  "key": "value"\n}'}
+                />
+              </Field>
+            ) : null}
+            <div className="grid grid-cols-3 gap-3">
+              <Field>
+                <FieldLabel>Intervalo</FieldLabel>
+                <Select
+                  items={INTERVALS}
+                  value={editInterval}
+                  onValueChange={(v) => {
+                    if (v) setEditInterval(v);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {INTERVALS.map((item) => (
+                      <SelectItem key={item.value} value={item}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Timeout (ms)</FieldLabel>
+                <Input name="timeoutMs" type="number" min={500} defaultValue={selected.timeoutMs} required />
+              </Field>
+              <Field>
+                <FieldLabel>Status</FieldLabel>
+                <Input name="expectedStatus" type="number" min={100} max={599} defaultValue={selected.expectedStatus} required />
+              </Field>
+            </div>
+          </Modal>
         </section>
       ) : null}
 
