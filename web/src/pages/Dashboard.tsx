@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { toastManager } from "@/components/ui/toast";
-import { Logo } from "@/components/Logo";
+import { Navbar } from "@/components/Navbar";
 import { api, type Monitor, type MonitorDetail } from "@/lib/api";
 
 const METHODS = [
@@ -126,16 +126,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="mx-auto min-h-svh max-w-6xl px-4 py-8">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <a href="/" className="text-foreground no-underline">
-            <Logo className="text-3xl" />
-          </a>
-          <p className="text-sm text-muted-foreground">API & Website Monitor</p>
-        </div>
+    <div className="min-h-svh">
+      <Navbar>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button type="button" />}>Novo monitor</DialogTrigger>
+          <DialogTrigger render={<Button size="sm" type="button" />}>Novo monitor</DialogTrigger>
           <DialogPopup>
             <DialogHeader>
               <DialogTitle>Cadastrar monitor</DialogTitle>
@@ -194,7 +188,9 @@ export default function Dashboard() {
             </Form>
           </DialogPopup>
         </Dialog>
-      </header>
+      </Navbar>
+
+      <main className="mx-auto max-w-6xl px-4 py-8">
 
       {list.length === 0 ? (
         <Empty>
@@ -212,14 +208,14 @@ export default function Dashboard() {
           </EmptyContent>
         </Empty>
       ) : (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>Monitores</CardTitle>
             <CardDescription>Status atual. Clique na linha pra histórico e incidentes.</CardDescription>
           </CardHeader>
-          <CardPanel className="overflow-x-auto p-0">
+          <CardPanel className="max-h-96 overflow-auto p-0">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>URL</TableHead>
@@ -255,7 +251,7 @@ export default function Dashboard() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-heading text-xl">{selected.name}</h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="mt-3 text-sm text-muted-foreground">
                 {selected.method} {selected.url} · uptime{" "}
                 {selected.stats.pct == null ? "—" : `${selected.stats.pct}%`} · média{" "}
                 {selected.stats.avgMs} ms
@@ -299,9 +295,9 @@ export default function Dashboard() {
               <TabsTab value="incidents">Incidentes</TabsTab>
               <TabsTab value="alerts">Alertas</TabsTab>
             </TabsList>
-            <TabsPanel value="history" className="mt-4">
+            <TabsPanel value="history" className="mt-4 max-h-96 overflow-auto rounded-lg border">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-background">
                   <TableRow>
                     <TableHead>Quando</TableHead>
                     <TableHead>OK</TableHead>
@@ -325,9 +321,9 @@ export default function Dashboard() {
                 </TableBody>
               </Table>
             </TabsPanel>
-            <TabsPanel value="incidents" className="mt-4">
+            <TabsPanel value="incidents" className="mt-4 max-h-96 overflow-auto rounded-lg border">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-background">
                   <TableRow>
                     <TableHead>Início</TableHead>
                     <TableHead>Fim</TableHead>
@@ -419,6 +415,7 @@ export default function Dashboard() {
           </Tabs>
         </section>
       ) : null}
+      </main>
     </div>
   );
 }

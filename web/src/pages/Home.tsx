@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardPanel, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Logo } from "@/components/Logo";
+import { Navbar } from "@/components/Navbar";
 
 const features = [
   {
@@ -49,19 +50,7 @@ const features = [
 export default function Home() {
   return (
     <div className="min-h-svh">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5">
-        <a href="/" className="text-foreground no-underline">
-          <Logo className="text-2xl" />
-        </a>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">Open Source</Badge>
-          <Badge variant="outline">Self-hosted</Badge>
-          <Badge variant="secondary">MIT</Badge>
-          <Button size="sm" render={<a href="/app" />}>
-            Dashboard
-          </Button>
-        </div>
-      </nav>
+      <Navbar />
 
       <section className="mx-auto max-w-6xl px-4 pb-16 pt-8 md:pt-16">
         <div className="mx-auto max-w-3xl text-center">
@@ -94,9 +83,10 @@ export default function Home() {
             check, incidente, alerta.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Preciso de ajuda aqui, depois de montado, o componente nunca executa o estilo de animação -translate-y */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 hover:cursor-pointer">
           {features.map((f) => (
-            <Card key={f.title}>
+            <Card key={f.title} className="duration-200 hover:-translate-y-2 hover:border">
               <CardHeader>
                 <f.icon className="mb-2 size-5 text-muted-foreground" aria-hidden />
                 <CardTitle>{f.title}</CardTitle>
@@ -107,7 +97,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="self-host" className="border-t bg-muted/40">
+      <section id="self-host" className="scroll-mt-16 border-t bg-muted/40">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-2 md:items-center">
           <div>
             <div className="mb-3 flex flex-wrap gap-2">

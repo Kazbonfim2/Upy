@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: upy
       POSTGRES_DB: upy
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -43,10 +43,14 @@ services:
   web:
     build:
       context: ./web
-      args:
-        VITE_API_URL: http://localhost:3000
+      target: dev
     ports:
-      - "5173:80"
+      - "5173:5173"
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3000
     depends_on:
       - api
 

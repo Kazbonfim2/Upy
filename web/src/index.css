@@ -1,13 +1,9 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
-@import "@fontsource/special-elite";
-
-@font-face {
-  font-family: "American Typewriter";
-  src: local("American Typewriter"), local("AmericanTypewriter"),
-    local("American Typewriter Bold"), local("AmericanTypewriter-Bold");
-  font-display: swap;
-}
+@import "@fontsource/gelasio";
+@import "@fontsource/gelasio/500.css";
+@import "@fontsource/gelasio/600.css";
+@import "@fontsource/gelasio/700.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -19,7 +15,7 @@
     --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
     --animate-toast-error-even: toast-error-even 0.28s cubic-bezier(0.5, 1, 0.89, 1);
     --font-heading: 'Inter', sans-serif;
-    --font-logo: "American Typewriter", "Special Elite", ui-serif, serif;
+    --font-logo: 'Gelasio', Georgia, serif;
     --font-mono: ui-monospace, 'Geist Mono', monospace;
     --font-sans: 'Inter', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
@@ -239,14 +235,30 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
   body {
     @apply bg-background text-foreground;
-    }
+  }
   code, kbd, samp, pre {
     font-family: var(--font-mono);
-    }
+  }
   html {
-    @apply font-sans font-mono;
-    }
+    @apply font-sans font-mono scroll-smooth;
+  }
 }
