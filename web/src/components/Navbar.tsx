@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { GithubIcon } from "@/components/GithubIcon";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -21,6 +22,20 @@ export function Navbar({ children }: { children?: ReactNode }) {
             <Badge variant="outline">Self-hosted</Badge>
             <Badge variant="secondary">MIT</Badge>
           </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Ver no GitHub"
+            render={
+              <a
+                href="https://github.com/Kazbonfim2/Upy"
+                target="_blank"
+                rel="noreferrer"
+              />
+            }
+          >
+            <GithubIcon className="size-4" />
+          </Button>
           <ThemeToggle />
           {children ??
             (isApp ? (

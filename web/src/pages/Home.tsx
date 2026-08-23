@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardPanel, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { GithubIcon } from "@/components/GithubIcon";
 import { Logo } from "@/components/Logo";
 import { Navbar } from "@/components/Navbar";
 
@@ -71,6 +72,20 @@ export default function Home() {
             <Button size="xl" variant="outline" render={<a href="#self-host" />}>
               Subir na sua máquina
             </Button>
+            <Button
+              size="xl"
+              variant="outline"
+              render={
+                <a
+                  href="https://github.com/Kazbonfim2/Upy"
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              }
+            >
+              <GithubIcon className="size-5" />
+              Veja no GitHub
+            </Button>
           </div>
         </div>
       </section>
@@ -121,6 +136,21 @@ export default function Home() {
                 Self-hosted: os checks saem da sua rede, os dados não saem do seu disco.
               </li>
             </ul>
+            <div className="mt-6">
+              <Button
+                variant="outline"
+                render={
+                  <a
+                    href="https://github.com/Kazbonfim2/Upy"
+                    target="_blank"
+                    rel="noreferrer"
+                  />
+                }
+              >
+                <GithubIcon className="size-4" />
+                Ver repositório no GitHub
+              </Button>
+            </div>
           </div>
           <Card>
             <CardHeader>
@@ -143,7 +173,18 @@ docker compose up -d --build`}</code>
       <Separator />
       <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground">
         <Logo className="text-lg text-foreground" />
-        <span>Open source · Self-hosted · MIT</span>
+        <div className="flex items-center gap-4">
+          <span>Open source · Self-hosted · MIT</span>
+          <a
+            href="https://github.com/Kazbonfim2/Upy"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+          >
+            <GithubIcon className="size-4" />
+            GitHub
+          </a>
+        </div>
       </footer>
     </div>
   );
