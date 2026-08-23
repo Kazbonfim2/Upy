@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull, sql as dsql } from "drizzle-orm";
 import { db } from "../db";
 import { alerts, checks, incidents, monitors } from "../db/schema";
+import { maybeOpenAiCard } from "./groq";
 import { isDue, isUp, nextIncidentAction } from "./health";
 import { discordPayload, sendEmail, sendHttpJson, webhookPayload } from "./notify";
 import { probe } from "./probe";
@@ -47,6 +48,13 @@ export async function runOne(monitorId: number) {
       lastError: result.error ?? `HTTP ${result.statusCode}`,
     });
     await fireAlerts(monitor.id, monitor.name, monitor.url, false, result.error ?? `HTTP ${result.statusCode}`);
+    await maybeOpenAiCard(monitor.id, {
+      url: monitor.url,
+      method: monitor.method,
+      statusCode: result.statusCode,
+      latencyMs: result.latencyMs,
+      error: result.error,
+    });
   } else if (action === "close" && open) {
     await db
       .update(incidents)

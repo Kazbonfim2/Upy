@@ -102,3 +102,24 @@ export function parseCard(body: Record<string, unknown>, partial = false): Parti
   }
   return out;
 }
+
+function clip(s: string, n: number) {
+  return s.trim().slice(0, n);
+}
+
+/** JSON do Groq: corta no limite do banco, nunca lança. */
+export function parseGroqCard(raw: string): { name: string; status: string; description: string } | null {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!data || typeof data !== "object") return null;
+  const o = data as Record<string, unknown>;
+  const name = typeof o.name === "string" ? clip(o.name, 100) : "";
+  const status = typeof o.status === "string" ? clip(o.status, 100) : "";
+  const description = typeof o.description === "string" ? clip(o.description, 300) : "";
+  if (!name || !status) return null;
+  return { name, status, description };
+}

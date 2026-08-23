@@ -1,6 +1,6 @@
 import { isDue, isUp, nextIncidentAction } from "../src/lib/health";
 import { discordPayload, webhookPayload } from "../src/lib/notify";
-import { parseAlert, parseMonitor, parseUrl } from "../src/lib/validate";
+import { parseAlert, parseGroqCard, parseMonitor, parseUrl } from "../src/lib/validate";
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
@@ -52,5 +52,16 @@ const d = discordPayload("api", "https://a", false, "HTTP 500");
 assert(typeof d.content === "string" && d.content.includes("caiu"), "discord down");
 const w = webhookPayload("api", "https://a", true, "ok");
 assert(w.event === "incident.resolved" && w.up === true, "webhook up");
+
+const g = parseGroqCard(
+  JSON.stringify({
+    name: "x".repeat(120),
+    status: "Timeout",
+    description: "y".repeat(400),
+  }),
+);
+assert(g && g.name.length === 100 && g.status === "Timeout" && g.description.length === 300, "clip groq");
+assert(parseGroqCard("nao-json") === null, "json inválido");
+assert(parseGroqCard('{"status":"x"}') === null, "name obrigatório");
 
 console.log("check ok");
