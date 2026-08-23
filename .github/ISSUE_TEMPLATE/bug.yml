@@ -1,0 +1,21 @@
+name: Bug
+description: Reportar um problema
+title: "[BUG] "
+labels: ["bug"]
+
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: O que aconteceu?
+      placeholder: Descreva o problema.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: O que deveria acontecer?
+      placeholder: Descreva o comportamento esperado.
+    validations:
+      required: true

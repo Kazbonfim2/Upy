@@ -1,0 +1,27 @@
+name: Deploy
+description: Registrar um deploy
+title: "[DEPLOY] "
+labels: ["deploy"]
+
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Versão
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: changes
+    attributes:
+      label: Alterações
+      placeholder: Liste as principais alterações.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Observações
+      placeholder: Algo importante sobre o deploy?

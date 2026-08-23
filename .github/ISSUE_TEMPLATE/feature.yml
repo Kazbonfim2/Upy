@@ -1,0 +1,19 @@
+name: Feature
+description: Sugerir ou registrar uma nova funcionalidade
+title: "[FEATURE] "
+labels: ["feature"]
+
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: O que precisa ser feito?
+      placeholder: Descreva a funcionalidade.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Critérios de aceite
+      placeholder: O que precisa estar funcionando para considerar concluído?
