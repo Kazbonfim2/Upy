@@ -1,3 +1,5 @@
+import nodemailer from "nodemailer";
+
 export function discordPayload(name: string, url: string, up: boolean, detail: string) {
   return {
     content: up
@@ -27,49 +29,74 @@ export async function sendHttpJson(target: string, body: unknown) {
   if (!res.ok) throw new Error(`alert HTTP ${res.status}`);
 }
 
-export async function sendEmail(to: string, subject: string, text: string) {
-  const host = process.env.SMTP_HOST;
-  if (!host) {
-    console.log(`[email skip] ${to} | ${subject}`);
-    return;
+export type SmtpConfig = {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth?: { user: string; pass: string };
+  from: string;
+};
+
+export function resolveSmtpConfig(env: Record<string, string | undefined> = process.env): SmtpConfig {
+  const isProd = env.NODE_ENV === "production";
+  const useGoogle = isProd || env.SMTP_PROVIDER === "google";
+
+  if (useGoogle) {
+    return {
+      host: "smtp.gmail.com",
+      port: Number(env.SMTP_PORT || 587),
+      secure: Number(env.SMTP_PORT) === 465,
+      auth: env.SMTP_USER && env.SMTP_PASS ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+      from: env.SMTP_FROM || env.SMTP_USER || "upy@gmail.com",
+    };
   }
-  const port = Number(process.env.SMTP_PORT || 1025);
-  const from = process.env.SMTP_FROM || "upy@localhost";
-  const socket = await Bun.connect({ hostname: host, port });
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const writer = socket.writable.getWriter();
-  const reader = socket.readable.getReader();
-  let leftover = "";
 
-  const recv = async () => {
-    while (true) {
-      const nl = leftover.indexOf("\n");
-      if (nl !== -1) {
-        const line = leftover.slice(0, nl).replace(/\r$/, "");
-        leftover = leftover.slice(nl + 1);
-        return line;
-      }
-      const { value, done } = await reader.read();
-      if (done) return leftover;
-      leftover += decoder.decode(value);
-    }
+  return {
+    host: env.SMTP_HOST || "localhost",
+    port: Number(env.SMTP_PORT || 1025),
+    secure: false,
+    auth: undefined,
+    from: env.SMTP_FROM || "upy@localhost",
   };
+}
 
-  const cmd = async (line: string) => {
-    await writer.write(encoder.encode(line + "\r\n"));
-    return recv();
-  };
+export async function sendEmail(to: string, subject: string, text: string) {
+  const isProd = process.env.NODE_ENV === "production";
+  const config = resolveSmtpConfig(process.env);
+
+  if (isProd && !config.auth) {
+    throw new Error("[email error] SMTP_USER e SMTP_PASS são obrigatórios em produção com Google SMTP");
+  }
 
   try {
-    await recv();
-    await cmd("HELO upy");
-    await cmd(`MAIL FROM:<${from}>`);
-    await cmd(`RCPT TO:<${to}>`);
-    await cmd("DATA");
-    await cmd(`From: ${from}\r\nTo: ${to}\r\nSubject: ${subject}\r\n\r\n${text}\r\n.`);
-    await cmd("QUIT");
-  } finally {
-    socket.end();
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.auth,
+    });
+
+    await transporter.sendMail({
+      from: config.from,
+      to,
+      subject,
+      text,
+    });
+  } catch (err) {
+    if (isProd) throw err;
+    console.warn(`[email warn] Falha ao enviar via ${config.host} em dev, usando fallback MailHog:`, err);
+
+    const fallback = nodemailer.createTransport({
+      host: process.env.SMTP_FALLBACK_HOST || "localhost",
+      port: Number(process.env.SMTP_FALLBACK_PORT || 1025),
+      secure: false,
+    });
+
+    await fallback.sendMail({
+      from: config.from,
+      to,
+      subject,
+      text,
+    });
   }
 }

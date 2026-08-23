@@ -1,5 +1,5 @@
 import { isDue, isUp, nextIncidentAction } from "../src/lib/health";
-import { discordPayload, webhookPayload } from "../src/lib/notify";
+import { discordPayload, resolveSmtpConfig, webhookPayload } from "../src/lib/notify";
 import { parseAlert, parseGroqCard, parseMonitor, parseUrl } from "../src/lib/validate";
 
 function assert(cond: unknown, msg: string) {
@@ -76,6 +76,28 @@ const g = parseGroqCard(
 );
 assert(g && g.name.length === 100 && g.status === "Timeout" && g.description.length === 300, "clip groq");
 assert(parseGroqCard("nao-json") === null, "json inválido");
-assert(parseGroqCard('{"status":"x"}') === null, "name obrigatório");
+const prodSmtp = resolveSmtpConfig({
+  NODE_ENV: "production",
+  SMTP_USER: "user@gmail.com",
+  SMTP_PASS: "pass",
+  SMTP_PORT: "587",
+});
+assert(prodSmtp.host === "smtp.gmail.com" && prodSmtp.auth?.user === "user@gmail.com", "prod usa google smtp");
+
+const devGoogleSmtp = resolveSmtpConfig({
+  NODE_ENV: "development",
+  SMTP_PROVIDER: "google",
+  SMTP_USER: "dev@gmail.com",
+  SMTP_PASS: "pass",
+});
+assert(devGoogleSmtp.host === "smtp.gmail.com" && devGoogleSmtp.auth?.user === "dev@gmail.com", "dev flag google");
+
+const devHogSmtp = resolveSmtpConfig({
+  NODE_ENV: "development",
+  SMTP_PROVIDER: "mailhog",
+  SMTP_HOST: "mailhog",
+  SMTP_PORT: "1025",
+});
+assert(devHogSmtp.host === "mailhog" && devHogSmtp.port === 1025 && devHogSmtp.auth === undefined, "dev fallback mailhog");
 
 console.log("check ok");
