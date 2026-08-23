@@ -1,4 +1,4 @@
-import { ActivityIcon, ChevronDownIcon, SparklesIcon } from "lucide-react";
+import { ActivityIcon, ChevronDownIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,7 @@ export default function Dashboard() {
   const [selected, setSelected] = useState<MonitorDetail | null>(null);
   const [method, setMethod] = useState(METHODS[0]);
   const [channel, setChannel] = useState(CHANNELS[1]);
+  const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [viewingCard, setViewingCard] = useState<CardRow | null>(null);
   const [confirmState, setConfirmState] = useState<{
@@ -148,6 +149,7 @@ export default function Dashboard() {
     e.preventDefault();
     if (!selected) return;
     const fd = new FormData(e.currentTarget);
+    setIsCreatingCard(true);
     try {
       await api.addCard(selected.id, {
         name: fd.get("name"),
@@ -159,6 +161,8 @@ export default function Dashboard() {
       await refresh();
     } catch (err) {
       toastManager.add({ title: "Falha", description: String(err), type: "error" });
+    } finally {
+      setIsCreatingCard(false);
     }
   }
 
@@ -513,11 +517,22 @@ export default function Dashboard() {
                     </Button>
                   </div>
 
-                  {kanbanColumns.length === 0 ? (
+                  {kanbanColumns.length === 0 && !isCreatingCard ? (
                     <p className="text-sm text-muted-foreground">Nenhum card ainda.</p>
                   ) : (
                     <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
-                      {kanbanColumns.map((col) => (
+                      {kanbanColumns.length === 0 && isCreatingCard ? (
+                        <div className="flex w-[85vw] max-w-72 shrink-0 flex-col gap-2 rounded-lg border bg-muted/40 p-2 sm:w-72">
+                          <div className="flex items-center justify-between gap-2 px-1 pt-1">
+                            <h3 className="truncate text-sm font-medium">Criando...</h3>
+                          </div>
+                          <div className="flex items-center gap-2.5 rounded-md border border-dashed border-primary/50 bg-primary/5 p-3 text-xs text-muted-foreground animate-pulse">
+                            <Loader2Icon className="size-4 animate-spin text-primary shrink-0" />
+                            <span>Criando novo card...</span>
+                          </div>
+                        </div>
+                      ) : null}
+                      {kanbanColumns.map((col, idx) => (
                         <div
                           key={col.status}
                           className="flex w-[85vw] max-w-72 shrink-0 flex-col gap-2 rounded-lg border bg-muted/40 p-2 sm:w-72"
@@ -527,6 +542,12 @@ export default function Dashboard() {
                             <Badge variant="secondary">{col.cards.length}</Badge>
                           </div>
                           <div className="flex flex-col gap-2">
+                            {idx === 0 && isCreatingCard ? (
+                              <div className="flex items-center gap-2.5 rounded-md border border-dashed border-primary/50 bg-primary/5 p-3 text-xs text-muted-foreground animate-pulse">
+                                <Loader2Icon className="size-3.5 animate-spin text-primary shrink-0" />
+                                <span>Criando novo card...</span>
+                              </div>
+                            ) : null}
                             {col.cards.map((card) => (
                               <article
                                 key={card.id}
