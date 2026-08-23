@@ -1,4 +1,4 @@
-import { ActivityIcon, ArrowUpIcon, ChevronDownIcon, Loader2Icon, SparklesIcon } from "lucide-react";
+import { ActivityIcon, ChevronDownIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -99,8 +99,6 @@ export default function Dashboard() {
     onConfirm: () => void | Promise<void>;
   } | null>(null);
 
-  const [showScrollTop, setShowScrollTop] = useState(false);
-
   const refresh = useCallback(async () => {
     const rows = await api.list();
     setList(rows);
@@ -112,12 +110,6 @@ export default function Dashboard() {
     const id = setInterval(() => refresh().catch(() => {}), 10_000);
     return () => clearInterval(id);
   }, [refresh]);
-
-  useEffect(() => {
-    const onScroll = () => setShowScrollTop(window.scrollY > 200);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -778,20 +770,6 @@ export default function Dashboard() {
           }
         }}
       />
-
-      {showScrollTop ? (
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg bg-background/90 backdrop-blur-xs transition-opacity duration-200"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          title="Voltar ao topo"
-          aria-label="Voltar ao topo"
-        >
-          <ArrowUpIcon className="size-4" />
-        </Button>
-      ) : null}
       </main>
     </div>
   );
