@@ -33,13 +33,18 @@ export async function maybeOpenAiCard(
       }),
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) throw new Error(`groq HTTP ${res.status}`);
+    const reqId = res.headers.get("x-request-id") ?? "-";
+    if (!res.ok) throw new Error(`groq HTTP ${res.status} [reqId: ${reqId}]`);
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const content = body.choices?.[0]?.message?.content;
     if (!content) return;
     const card = parseGroqCard(content);
     if (!card) return;
-    await db.insert(cards).values({ monitorId, ...card, resolved: false });
+    const [inserted] = await db
+      .insert(cards)
+      .values({ monitorId, ...card, resolved: false, source: "ai" })
+      .returning();
+    console.log(`[groq] card #${inserted?.id} criada monitor=${monitorId} reqId=${reqId}`);
   } catch (err) {
     console.error("groq card falhou:", err);
   }

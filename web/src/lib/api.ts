@@ -59,6 +59,7 @@ export type CardRow = {
   status: string;
   description: string;
   resolved: boolean;
+  source: string;
   createdAt: string;
 };
 

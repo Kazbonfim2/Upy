@@ -64,10 +64,12 @@ export async function ensureSchema() {
       status text NOT NULL,
       description text NOT NULL DEFAULT '',
       resolved boolean NOT NULL DEFAULT false,
+      source text NOT NULL DEFAULT 'manual',
       created_at timestamptz NOT NULL DEFAULT now()
     )
   `;
   await sql`ALTER TABLE cards ADD COLUMN IF NOT EXISTS resolved boolean NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE cards ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'manual'`;
   await sql`CREATE INDEX IF NOT EXISTS checks_monitor_checked_idx ON checks (monitor_id, checked_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS incidents_monitor_open_idx ON incidents (monitor_id) WHERE ended_at IS NULL`;
   await sql`CREATE INDEX IF NOT EXISTS cards_monitor_idx ON cards (monitor_id)`;

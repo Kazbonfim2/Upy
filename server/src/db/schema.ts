@@ -65,5 +65,7 @@ export const cards = pgTable("cards", {
   status: text("status").notNull(),
   description: text("description").notNull().default(""),
   resolved: boolean("resolved").notNull().default(false),
+  source: text("source").notNull().default("manual"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
