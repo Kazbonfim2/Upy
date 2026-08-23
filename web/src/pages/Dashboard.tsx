@@ -518,12 +518,31 @@ export default function Dashboard() {
                         />
                       </MeterTrack>
                     </Meter>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Média de resposta</p>
-                      <p className="text-2xl font-bold tracking-tight sm:text-3xl">
-                        {selected.stats.avgMs}{" "}
-                        <span className="text-sm font-normal text-muted-foreground">ms</span>
-                      </p>
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Média de resposta</p>
+                        <p className="text-2xl font-bold tracking-tight sm:text-3xl">
+                          {selected.stats.avgMs}{" "}
+                          <span className="text-sm font-normal text-muted-foreground">ms</span>
+                        </p>
+                      </div>
+                      {selected.stats.total > 0 && (
+                        <Badge
+                          variant={
+                            selected.stats.avgMs <= 300
+                              ? "success"
+                              : selected.stats.avgMs <= 800
+                                ? "warning"
+                                : "error"
+                          }
+                        >
+                          {selected.stats.avgMs <= 300
+                            ? "Excelente!"
+                            : selected.stats.avgMs <= 800
+                              ? "Mediano"
+                              : "Ruim"}
+                        </Badge>
+                      )}
                     </div>
                   </CardPanel>
                 </Card>
