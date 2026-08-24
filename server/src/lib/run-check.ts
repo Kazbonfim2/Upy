@@ -12,6 +12,7 @@ export async function runOne(monitorId: number) {
 
   const result = await probe(monitor.url, monitor.method, monitor.timeoutMs, monitor.body);
   const ok = isUp(result, monitor.expectedStatus);
+  const errDetail = result.error ?? (ok ? null : `HTTP ${result.statusCode} (esperado ${monitor.expectedStatus})`);
 
   const [row] = await db
     .insert(checks)
@@ -20,7 +21,7 @@ export async function runOne(monitorId: number) {
       ok,
       statusCode: result.statusCode,
       latencyMs: result.latencyMs,
-      error: result.error,
+      error: errDetail,
     })
     .returning();
 
@@ -30,7 +31,7 @@ export async function runOne(monitorId: number) {
       lastOk: ok,
       lastStatusCode: result.statusCode,
       lastLatencyMs: result.latencyMs,
-      lastError: result.error,
+      lastError: errDetail,
       lastCheckedAt: new Date(),
     })
     .where(eq(monitors.id, monitor.id));
@@ -45,15 +46,15 @@ export async function runOne(monitorId: number) {
   if (action === "open") {
     await db.insert(incidents).values({
       monitorId: monitor.id,
-      lastError: result.error ?? `HTTP ${result.statusCode}`,
+      lastError: errDetail ?? "Erro desconhecido",
     });
-    await fireAlerts(monitor.id, monitor.name, monitor.url, false, result.error ?? `HTTP ${result.statusCode}`);
+    await fireAlerts(monitor.id, monitor.name, monitor.url, false, errDetail ?? "Erro desconhecido");
     await maybeOpenAiCard(monitor.id, {
       url: monitor.url,
       method: monitor.method,
       statusCode: result.statusCode,
       latencyMs: result.latencyMs,
-      error: result.error,
+      error: errDetail,
     });
   } else if (action === "close" && open) {
     await db
@@ -64,7 +65,7 @@ export async function runOne(monitorId: number) {
   } else if (!ok && open) {
     await db
       .update(incidents)
-      .set({ lastError: result.error ?? `HTTP ${result.statusCode}` })
+      .set({ lastError: errDetail ?? "Erro desconhecido" })
       .where(eq(incidents.id, open.id));
   }
 

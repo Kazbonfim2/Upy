@@ -741,17 +741,23 @@ export default function Dashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selected.checks.map((c) => (
-                        <TableRow key={c.id}>
-                          <TableCell>{fmt(c.checkedAt)}</TableCell>
-                          <TableCell>
-                            {c.ok ? <Badge variant="success">sim</Badge> : <Badge variant="error">não</Badge>}
-                          </TableCell>
-                          <TableCell>{c.statusCode ?? "—"}</TableCell>
-                          <TableCell>{c.latencyMs} ms</TableCell>
-                          <TableCell className="max-w-md truncate">{c.error ?? "—"}</TableCell>
+                      {selected.checks.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5}>Nenhum check registrado.</TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        selected.checks.map((c) => (
+                          <TableRow key={c.id}>
+                            <TableCell>{fmt(c.checkedAt)}</TableCell>
+                            <TableCell>
+                              {c.ok ? <Badge variant="success">sim</Badge> : <Badge variant="error">não</Badge>}
+                            </TableCell>
+                            <TableCell>{c.statusCode ?? "—"}</TableCell>
+                            <TableCell>{c.latencyMs} ms</TableCell>
+                            <TableCell className="max-w-md truncate">{c.error ?? "—"}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </TabsPanel>
