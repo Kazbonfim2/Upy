@@ -22,6 +22,7 @@ export async function runOne(monitorId: number) {
       statusCode: result.statusCode,
       latencyMs: result.latencyMs,
       error: errDetail,
+      responseBody: result.responseBody,
     })
     .returning();
 
@@ -47,6 +48,7 @@ export async function runOne(monitorId: number) {
     await db.insert(incidents).values({
       monitorId: monitor.id,
       lastError: errDetail ?? "Erro desconhecido",
+      responseBody: result.responseBody,
     });
     await fireAlerts(monitor.id, monitor.name, monitor.url, false, errDetail ?? "Erro desconhecido");
     await maybeOpenAiCard(monitor.id, {
@@ -65,7 +67,10 @@ export async function runOne(monitorId: number) {
   } else if (!ok && open) {
     await db
       .update(incidents)
-      .set({ lastError: errDetail ?? "Erro desconhecido" })
+      .set({
+        lastError: errDetail ?? "Erro desconhecido",
+        responseBody: result.responseBody,
+      })
       .where(eq(incidents.id, open.id));
   }
 

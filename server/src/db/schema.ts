@@ -34,6 +34,7 @@ export const checks = pgTable("checks", {
   statusCode: integer("status_code"),
   latencyMs: integer("latency_ms").notNull(),
   error: text("error"),
+  responseBody: text("response_body"),
   checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -45,6 +46,7 @@ export const incidents = pgTable("incidents", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
   lastError: text("last_error"),
+  responseBody: text("response_body"),
 });
 
 export const alerts = pgTable("alerts", {

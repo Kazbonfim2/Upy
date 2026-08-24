@@ -37,6 +37,7 @@ export type CheckRow = {
   statusCode: number | null;
   latencyMs: number;
   error: string | null;
+  responseBody: string | null;
   checkedAt: string;
 };
 
@@ -45,6 +46,7 @@ export type Incident = {
   startedAt: string;
   endedAt: string | null;
   lastError: string | null;
+  responseBody: string | null;
 };
 
 export type AlertRow = {

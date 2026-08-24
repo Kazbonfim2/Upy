@@ -6,9 +6,9 @@ function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
 }
 
-assert(isUp({ statusCode: 200, latencyMs: 12, error: null }, 200), "200 esperado = up");
-assert(!isUp({ statusCode: 500, latencyMs: 12, error: null }, 200), "500 != 200");
-assert(!isUp({ statusCode: null, latencyMs: 80, error: "timeout" }, 200), "erro = down");
+assert(isUp({ statusCode: 200, latencyMs: 12, error: null, responseBody: '{"ok":true}' }, 200), "200 esperado = up");
+assert(!isUp({ statusCode: 500, latencyMs: 12, error: null, responseBody: "internal error" }, 200), "500 != 200");
+assert(!isUp({ statusCode: null, latencyMs: 80, error: "timeout", responseBody: null }, 200), "erro = down");
 
 assert(nextIncidentAction(false, false) === "open", "caiu abre");
 assert(nextIncidentAction(false, true) === "none", "já aberto");

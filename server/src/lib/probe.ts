@@ -16,10 +16,13 @@ export async function probe(
       redirect: "follow",
       signal: AbortSignal.timeout(timeoutMs),
     });
+    const rawText = await res.text();
+    const responseBody = rawText ? rawText.slice(0, 10000) : null;
     return {
       statusCode: res.status,
       latencyMs: Math.round(performance.now() - started),
       error: null,
+      responseBody,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -27,6 +30,7 @@ export async function probe(
       statusCode: null,
       latencyMs: Math.round(performance.now() - started),
       error: msg.slice(0, 500),
+      responseBody: null,
     };
   }
 }

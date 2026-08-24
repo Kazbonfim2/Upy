@@ -125,6 +125,16 @@ function groupCardsByStatus(cards: CardRow[]) {
   return order.map((status) => ({ status, cards: map.get(status)! }));
 }
 
+function formatResponseBody(raw: string | null): string {
+  if (!raw) return "Sem corpo de resposta.";
+  try {
+    const parsed = JSON.parse(raw);
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return raw;
+  }
+}
+
 export default function Dashboard() {
   const [list, setList] = useState<Monitor[]>([]);
   const [open, setOpen] = useState(false);
@@ -141,6 +151,8 @@ export default function Dashboard() {
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [viewingCard, setViewingCard] = useState<CardRow | null>(null);
+  const [viewingResponse, setViewingResponse] = useState<{ title: string; body: string } | null>(null);
+  const [copiedResponse, setCopiedResponse] = useState(false);
   const [confirmState, setConfirmState] = useState<{
     title: string;
     description?: string;
@@ -148,6 +160,17 @@ export default function Dashboard() {
     variant?: "destructive" | "default";
     onConfirm: () => void | Promise<void>;
   } | null>(null);
+
+  async function onCopyResponse(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedResponse(true);
+      toastManager.add({ title: "Copiado para a área de transferência", type: "success" });
+      setTimeout(() => setCopiedResponse(false), 2000);
+    } catch (err) {
+      toastManager.add({ title: "Falha ao copiar", description: String(err), type: "error" });
+    }
+  }
 
   const refresh = useCallback(async () => {
     const rows = await api.list();
@@ -733,17 +756,18 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
-                        <TableHead className="w-48">Quando</TableHead>
-                        <TableHead className="w-24">OK</TableHead>
-                        <TableHead className="w-24">HTTP</TableHead>
-                        <TableHead className="w-28">Latência</TableHead>
+                        <TableHead className="w-44">Quando</TableHead>
+                        <TableHead className="w-20">OK</TableHead>
+                        <TableHead className="w-20">HTTP</TableHead>
+                        <TableHead className="w-24">Latência</TableHead>
                         <TableHead className="w-auto">Erro</TableHead>
+                        <TableHead className="w-28 text-center">Resposta</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selected.checks.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5}>Nenhum check registrado.</TableCell>
+                          <TableCell colSpan={6}>Nenhum check registrado.</TableCell>
                         </TableRow>
                       ) : (
                         selected.checks.map((c) => (
@@ -755,6 +779,26 @@ export default function Dashboard() {
                             <TableCell>{c.statusCode ?? "—"}</TableCell>
                             <TableCell>{c.latencyMs} ms</TableCell>
                             <TableCell className="max-w-md truncate">{c.error ?? "—"}</TableCell>
+                            <TableCell className="text-center">
+                              {c.responseBody ? (
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setCopiedResponse(false);
+                                    setViewingResponse({
+                                      title: `Resposta do check (${fmt(c.checkedAt)})`,
+                                      body: c.responseBody!,
+                                    });
+                                  }}
+                                >
+                                  Visualizar
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))
                       )}
@@ -766,15 +810,16 @@ export default function Dashboard() {
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
                         <TableHead className="w-28">Status</TableHead>
-                        <TableHead className="w-48">Início</TableHead>
-                        <TableHead className="w-48">Fim</TableHead>
+                        <TableHead className="w-44">Início</TableHead>
+                        <TableHead className="w-44">Fim</TableHead>
                         <TableHead className="w-auto">Erro</TableHead>
+                        <TableHead className="w-28 text-center">Resposta</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selected.incidents.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4}>Nenhum incidente.</TableCell>
+                          <TableCell colSpan={5}>Nenhum incidente.</TableCell>
                         </TableRow>
                       ) : (
                         selected.incidents.map((i) => (
@@ -789,6 +834,26 @@ export default function Dashboard() {
                             <TableCell>{fmt(i.startedAt)}</TableCell>
                             <TableCell>{i.endedAt ? fmt(i.endedAt) : "—"}</TableCell>
                             <TableCell className="max-w-md truncate">{i.lastError ?? "—"}</TableCell>
+                            <TableCell className="text-center">
+                              {i.responseBody ? (
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setCopiedResponse(false);
+                                    setViewingResponse({
+                                      title: `Resposta do incidente (${fmt(i.startedAt)})`,
+                                      body: i.responseBody!,
+                                    });
+                                  }}
+                                >
+                                  Visualizar
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))
                       )}
@@ -1219,6 +1284,49 @@ export default function Dashboard() {
           }
         }}
       />
+
+      <Modal
+        open={viewingResponse !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setViewingResponse(null);
+            setCopiedResponse(false);
+          }
+        }}
+        title={viewingResponse?.title ?? "Resposta"}
+        description="Corpo da resposta retornado pelo endpoint."
+        footer={
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+            {viewingResponse?.body ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => onCopyResponse(formatResponseBody(viewingResponse.body))}
+              >
+                {copiedResponse ? "Copiado!" : "Copiar"}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setViewingResponse(null);
+                setCopiedResponse(false);
+              }}
+            >
+              Fechar
+            </Button>
+          </div>
+        }
+      >
+        {viewingResponse ? (
+          <pre className="max-h-96 overflow-auto rounded-md bg-muted/60 p-3.5 font-mono text-xs text-foreground whitespace-pre-wrap break-all select-all">
+            {formatResponseBody(viewingResponse.body)}
+          </pre>
+        ) : null}
+      </Modal>
       </main>
       <Footer className="mt-10" />
     </div>

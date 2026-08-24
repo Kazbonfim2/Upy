@@ -2,6 +2,7 @@ export type ProbeResult = {
   statusCode: number | null;
   latencyMs: number;
   error: string | null;
+  responseBody: string | null;
 };
 
 export function isUp(result: ProbeResult, expectedStatus: number): boolean {
