@@ -43,7 +43,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { z } from "zod";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
-import { api, type CardRow, type Monitor, type MonitorDetail } from "@/lib/api";
+import { api, type CardRow, type CheckRow, type Incident, type Monitor, type MonitorDetail } from "@/lib/api";
 
 const METHODS = [
   { label: "GET", value: "GET" },
@@ -126,13 +126,41 @@ function groupCardsByStatus(cards: CardRow[]) {
 }
 
 function formatResponseBody(raw: string | null): string {
-  if (!raw) return "Sem corpo de resposta.";
+  if (!raw || !raw.trim()) return "Sem corpo de resposta.";
   try {
     const parsed = JSON.parse(raw);
     return JSON.stringify(parsed, null, 2);
   } catch {
     return raw;
   }
+}
+
+function getCheckResponse(c: CheckRow): string {
+  if (c.responseBody && c.responseBody.trim()) return c.responseBody;
+  return JSON.stringify(
+    {
+      statusCode: c.statusCode,
+      ok: c.ok,
+      latencyMs: c.latencyMs,
+      error: c.error ?? (c.ok ? null : "Falha na requisição"),
+    },
+    null,
+    2,
+  );
+}
+
+function getIncidentResponse(i: Incident): string {
+  if (i.responseBody && i.responseBody.trim()) return i.responseBody;
+  return JSON.stringify(
+    {
+      status: i.endedAt ? "resolvido" : "aberto",
+      startedAt: i.startedAt,
+      endedAt: i.endedAt,
+      error: i.lastError ?? "Sem detalhes de erro",
+    },
+    null,
+    2,
+  );
 }
 
 export default function Dashboard() {
@@ -455,12 +483,12 @@ export default function Dashboard() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
-                  <TableHead className="w-1/4">Nome</TableHead>
-                  <TableHead className="w-1/3">URL</TableHead>
-                  <TableHead className="w-28">Status</TableHead>
-                  <TableHead className="w-20">HTTP</TableHead>
-                  <TableHead className="w-28">Latência</TableHead>
-                  <TableHead className="w-40">Último check</TableHead>
+                  <TableHead className="w-[25%]">Nome</TableHead>
+                  <TableHead className="w-[30%]">URL</TableHead>
+                  <TableHead className="w-[12%]">Status</TableHead>
+                  <TableHead className="w-[10%]">HTTP</TableHead>
+                  <TableHead className="w-[10%]">Latência</TableHead>
+                  <TableHead className="w-[13%] text-right">Último check</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -475,7 +503,7 @@ export default function Dashboard() {
                     <TableCell>{statusBadge(m)}</TableCell>
                     <TableCell>{m.lastStatusCode ?? "—"}</TableCell>
                     <TableCell>{m.lastLatencyMs != null ? `${m.lastLatencyMs} ms` : "—"}</TableCell>
-                    <TableCell>{fmt(m.lastCheckedAt)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{fmt(m.lastCheckedAt)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -756,18 +784,20 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
-                        <TableHead className="w-44">Quando</TableHead>
-                        <TableHead className="w-20">OK</TableHead>
-                        <TableHead className="w-20">HTTP</TableHead>
-                        <TableHead className="w-24">Latência</TableHead>
-                        <TableHead className="w-auto">Erro</TableHead>
-                        <TableHead className="w-28 text-center">Resposta</TableHead>
+                        <TableHead className="w-[22%]">Quando</TableHead>
+                        <TableHead className="w-[10%]">OK</TableHead>
+                        <TableHead className="w-[10%]">HTTP</TableHead>
+                        <TableHead className="w-[12%]">Latência</TableHead>
+                        <TableHead className="w-[32%]">Erro</TableHead>
+                        <TableHead className="w-[14%] text-right">Resposta</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selected.checks.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6}>Nenhum check registrado.</TableCell>
+                          <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                            Nenhum check registrado.
+                          </TableCell>
                         </TableRow>
                       ) : (
                         selected.checks.map((c) => (
@@ -778,26 +808,32 @@ export default function Dashboard() {
                             </TableCell>
                             <TableCell>{c.statusCode ?? "—"}</TableCell>
                             <TableCell>{c.latencyMs} ms</TableCell>
-                            <TableCell className="max-w-md truncate">{c.error ?? "—"}</TableCell>
-                            <TableCell className="text-center">
-                              {c.responseBody ? (
-                                <Button
-                                  type="button"
-                                  size="xs"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setCopiedResponse(false);
-                                    setViewingResponse({
-                                      title: `Resposta do check (${fmt(c.checkedAt)})`,
-                                      body: c.responseBody!,
-                                    });
-                                  }}
-                                >
-                                  Visualizar
-                                </Button>
+                            <TableCell className="max-w-xs truncate">
+                              {c.error ? (
+                                <span className="text-destructive font-mono text-xs">{c.error}</span>
+                              ) : !c.ok ? (
+                                <span className="text-destructive font-mono text-xs">
+                                  {c.statusCode ? `HTTP ${c.statusCode}` : "Falha na conexão"}
+                                </span>
                               ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
+                                <span className="text-muted-foreground">—</span>
                               )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="outline"
+                                onClick={() => {
+                                  setCopiedResponse(false);
+                                  setViewingResponse({
+                                    title: `Resposta do check (${fmt(c.checkedAt)})`,
+                                    body: getCheckResponse(c),
+                                  });
+                                }}
+                              >
+                                Visualizar
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -809,17 +845,19 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
-                        <TableHead className="w-28">Status</TableHead>
-                        <TableHead className="w-44">Início</TableHead>
-                        <TableHead className="w-44">Fim</TableHead>
-                        <TableHead className="w-auto">Erro</TableHead>
-                        <TableHead className="w-28 text-center">Resposta</TableHead>
+                        <TableHead className="w-[14%]">Status</TableHead>
+                        <TableHead className="w-[22%]">Início</TableHead>
+                        <TableHead className="w-[22%]">Fim</TableHead>
+                        <TableHead className="w-[28%]">Erro</TableHead>
+                        <TableHead className="w-[14%] text-right">Resposta</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selected.incidents.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5}>Nenhum incidente.</TableCell>
+                          <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                            Nenhum incidente registrado.
+                          </TableCell>
                         </TableRow>
                       ) : (
                         selected.incidents.map((i) => (
@@ -832,27 +870,29 @@ export default function Dashboard() {
                               )}
                             </TableCell>
                             <TableCell>{fmt(i.startedAt)}</TableCell>
-                            <TableCell>{i.endedAt ? fmt(i.endedAt) : "—"}</TableCell>
-                            <TableCell className="max-w-md truncate">{i.lastError ?? "—"}</TableCell>
-                            <TableCell className="text-center">
-                              {i.responseBody ? (
-                                <Button
-                                  type="button"
-                                  size="xs"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setCopiedResponse(false);
-                                    setViewingResponse({
-                                      title: `Resposta do incidente (${fmt(i.startedAt)})`,
-                                      body: i.responseBody!,
-                                    });
-                                  }}
-                                >
-                                  Visualizar
-                                </Button>
+                            <TableCell>{i.endedAt ? fmt(i.endedAt) : <span className="text-muted-foreground">—</span>}</TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {i.lastError ? (
+                                <span className="text-destructive font-mono text-xs">{i.lastError}</span>
                               ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
+                                <span className="text-muted-foreground">—</span>
                               )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="outline"
+                                onClick={() => {
+                                  setCopiedResponse(false);
+                                  setViewingResponse({
+                                    title: `Resposta do incidente (${fmt(i.startedAt)})`,
+                                    body: getIncidentResponse(i),
+                                  });
+                                }}
+                              >
+                                Visualizar
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -899,16 +939,16 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-44">Canal</TableHead>
-                        <TableHead className="w-auto">Destino</TableHead>
-                        <TableHead className="w-28 text-right">Ações</TableHead>
+                        <TableHead className="w-[20%]">Canal</TableHead>
+                        <TableHead className="w-[65%]">Destino</TableHead>
+                        <TableHead className="w-[15%] text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selected.alerts.map((a) => (
                         <TableRow key={a.id}>
                           <TableCell className="font-medium">{a.channel}</TableCell>
-                          <TableCell className="max-w-md truncate">{a.target}</TableCell>
+                          <TableCell className="max-w-md truncate text-muted-foreground">{a.target}</TableCell>
                           <TableCell className="text-right">
                             <Button
                               type="button"

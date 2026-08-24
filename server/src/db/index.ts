@@ -36,6 +36,7 @@ export async function ensureSchema() {
       status_code integer,
       latency_ms integer NOT NULL,
       error text,
+      response_body text,
       checked_at timestamptz NOT NULL DEFAULT now()
     )
   `;
@@ -45,7 +46,8 @@ export async function ensureSchema() {
       monitor_id integer NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
       started_at timestamptz NOT NULL DEFAULT now(),
       ended_at timestamptz,
-      last_error text
+      last_error text,
+      response_body text
     )
   `;
   await sql`
