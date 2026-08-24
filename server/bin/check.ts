@@ -1,6 +1,6 @@
 import { isDue, isUp, nextIncidentAction } from "../src/lib/health";
 import { discordPayload, resolveSmtpConfig, webhookPayload } from "../src/lib/notify";
-import { parseAlert, parseGroqCard, parseMonitor, parseUrl } from "../src/lib/validate";
+import { parseAlert, parseCard, parseGroqCard, parseMonitor, parseUrl } from "../src/lib/validate";
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
@@ -76,28 +76,32 @@ const g = parseGroqCard(
 );
 assert(g && g.name.length === 100 && g.status === "Timeout" && g.description.length === 300, "clip groq");
 assert(parseGroqCard("nao-json") === null, "json inválido");
-const prodSmtp = resolveSmtpConfig({
-  NODE_ENV: "production",
+
+// Card checks
+const fullCard = parseCard({ name: "Falha HTTP", status: "open" });
+assert(fullCard.name === "Falha HTTP" && fullCard.description === "" && fullCard.resolved === false, "card create defaults");
+
+const patchResolvedOnly = parseCard({ resolved: true }, true);
+assert(patchResolvedOnly.resolved === true && patchResolvedOnly.description === undefined, "card patch resolved preserva description");
+
+const patchDescOnly = parseCard({ description: "detalhes do erro" }, true);
+assert(patchDescOnly.description === "detalhes do erro" && patchDescOnly.resolved === undefined, "card patch description preserva resolved");
+
+// Monitor patch check
+const patchMonitorOnly = parseMonitor({ enabled: false }, true);
+assert(patchMonitorOnly.enabled === false && patchMonitorOnly.intervalSeconds === undefined, "monitor patch preserva intervalSeconds");
+
+// SMTP checks
+const defaultGoogleSmtp = resolveSmtpConfig({
   SMTP_USER: "user@gmail.com",
   SMTP_PASS: "pass",
-  SMTP_PORT: "587",
 });
-assert(prodSmtp.host === "smtp.gmail.com" && prodSmtp.auth?.user === "user@gmail.com", "prod usa google smtp");
+assert(defaultGoogleSmtp.host === "smtp.gmail.com" && defaultGoogleSmtp.port === 587 && defaultGoogleSmtp.auth?.user === "user@gmail.com", "google smtp padrao");
 
-const devGoogleSmtp = resolveSmtpConfig({
-  NODE_ENV: "development",
-  SMTP_PROVIDER: "google",
-  SMTP_USER: "dev@gmail.com",
-  SMTP_PASS: "pass",
+const customSmtp = resolveSmtpConfig({
+  SMTP_HOST: "custom.smtp.com",
+  SMTP_PORT: "465",
 });
-assert(devGoogleSmtp.host === "smtp.gmail.com" && devGoogleSmtp.auth?.user === "dev@gmail.com", "dev flag google");
-
-const devHogSmtp = resolveSmtpConfig({
-  NODE_ENV: "development",
-  SMTP_PROVIDER: "mailhog",
-  SMTP_HOST: "mailhog",
-  SMTP_PORT: "1025",
-});
-assert(devHogSmtp.host === "mailhog" && devHogSmtp.port === 1025 && devHogSmtp.auth === undefined, "dev fallback mailhog");
+assert(customSmtp.host === "custom.smtp.com" && customSmtp.port === 465 && customSmtp.secure === true, "custom smtp config");
 
 console.log("check ok");

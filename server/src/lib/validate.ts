@@ -44,45 +44,45 @@ const jsonBodySchema = z
     { message: "body precisa ser um JSON válido" },
   );
 
-export const monitorSchema = z.object({
+const monitorBaseSchema = z.object({
   name: z.string().trim().min(1, "name obrigatório"),
   url: z.string().trim().transform(parseUrl),
   method: z
     .string()
-    .default("GET")
     .transform((m) => m.toUpperCase())
     .refine((m) => METHODS.includes(m as (typeof METHODS)[number]), { message: "method inválido" }),
   intervalSeconds: z.coerce
     .number()
     .int()
-    .refine((n) => n >= 10 && n <= 86400, { message: "intervalSeconds entre 10 e 86400" })
-    .default(60),
+    .refine((n) => n >= 10 && n <= 86400, { message: "intervalSeconds entre 10 e 86400" }),
   timeoutMs: z.coerce
     .number()
     .int()
     .min(500, { message: "timeoutMs entre 500 e 30000" })
-    .max(30000, { message: "timeoutMs entre 500 e 30000" })
-    .default(5000),
+    .max(30000, { message: "timeoutMs entre 500 e 30000" }),
   expectedStatus: z.coerce
     .number()
     .int()
     .min(100, { message: "expectedStatus inválido" })
-    .max(599, { message: "expectedStatus inválido" })
-    .default(200),
-  enabled: z.boolean().default(true),
+    .max(599, { message: "expectedStatus inválido" }),
+  enabled: z.boolean(),
+  body: jsonBodySchema,
+});
+
+export const monitorSchema = monitorBaseSchema.extend({
+  method: monitorBaseSchema.shape.method.default("GET"),
+  intervalSeconds: monitorBaseSchema.shape.intervalSeconds.default(60),
+  timeoutMs: monitorBaseSchema.shape.timeoutMs.default(5000),
+  expectedStatus: monitorBaseSchema.shape.expectedStatus.default(200),
+  enabled: monitorBaseSchema.shape.enabled.default(true),
   body: jsonBodySchema.optional(),
 });
 
+export const monitorPatchSchema = monitorBaseSchema.partial();
+
 export function parseMonitor(body: Record<string, unknown>, partial = false): Partial<MonitorInput> {
-  if (partial) {
-    const partialSchema = monitorSchema.partial();
-    const res = partialSchema.safeParse(body);
-    if (!res.success) {
-      throw new Error(res.error.issues[0]?.message || "dados inválidos");
-    }
-    return res.data;
-  }
-  const res = monitorSchema.safeParse(body);
+  const schema = partial ? monitorPatchSchema : monitorSchema;
+  const res = schema.safeParse(body);
   if (!res.success) {
     throw new Error(res.error.issues[0]?.message || "dados inválidos");
   }
@@ -131,15 +131,22 @@ export type CardInput = {
   resolved: boolean;
 };
 
-export const cardSchema = z.object({
+const cardBaseSchema = z.object({
   name: z.string().trim().min(1, "name obrigatório").max(100, "name máx. 100 caracteres"),
   status: z.string().trim().min(1, "status obrigatório").max(100, "status máx. 100 caracteres"),
-  description: z.string().trim().max(300, "description máx. 300 caracteres").default(""),
-  resolved: z.boolean().default(false),
+  description: z.string().trim().max(300, "description máx. 300 caracteres"),
+  resolved: z.boolean(),
 });
 
+export const cardSchema = cardBaseSchema.extend({
+  description: cardBaseSchema.shape.description.default(""),
+  resolved: cardBaseSchema.shape.resolved.default(false),
+});
+
+export const cardPatchSchema = cardBaseSchema.partial();
+
 export function parseCard(body: Record<string, unknown>, partial = false): Partial<CardInput> {
-  const schema = partial ? cardSchema.partial() : cardSchema;
+  const schema = partial ? cardPatchSchema : cardSchema;
   const res = schema.safeParse(body);
   if (!res.success) {
     throw new Error(res.error.issues[0]?.message || "card inválido");

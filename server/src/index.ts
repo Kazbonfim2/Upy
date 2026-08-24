@@ -25,7 +25,15 @@ app.route("/api/monitors", monitorRoutes);
 
 const port = Number(process.env.API_PORT || 3000);
 
-await ensureSchema();
+while (true) {
+  try {
+    await ensureSchema();
+    break;
+  } catch (err) {
+    console.error("api aguardando banco:", err);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+}
 
 export default {
   port,

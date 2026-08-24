@@ -58,7 +58,7 @@ docker compose up -d --build
    cd web && bun install && bun run dev
    ```
 
-> **SMTP:** Sem `SMTP_HOST` configurado, notificações por e-mail são registradas no log do worker. Para testes locais com Mailhog, defina `SMTP_HOST=mailhog` e porta `1025`.
+> **SMTP:** Google SMTP é o padrão (`smtp.gmail.com`). Em ambiente local/dev, use a flag `SMTP_DEV_LOG=true` no `.env` para inspecionar os e-mails diretamente no console sem precisar de envio real.
 
 ## Estrutura do projeto
 

@@ -29,6 +29,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bun -e \"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
   worker:
     build: ./server
@@ -36,18 +41,18 @@ services:
     environment:
       DATABASE_URL: postgres://upy:upy@db:5432/upy
       NODE_ENV: ${NODE_ENV:-development}
-      SMTP_PROVIDER: ${SMTP_PROVIDER:-google}
-      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
-      SMTP_FALLBACK_HOST: ${SMTP_FALLBACK_HOST:-localhost}
-      SMTP_FALLBACK_PORT: ${SMTP_FALLBACK_PORT:-1025}
+      SMTP_DEV_LOG: ${SMTP_DEV_LOG:-true}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
     depends_on:
       db:
+        condition: service_healthy
+      api:
         condition: service_healthy
 
   web:
@@ -62,13 +67,11 @@ services:
     environment:
       - VITE_API_URL=http://localhost:3000
     depends_on:
-      - api
-
-  mailhog:
-          image: mailhog/mailhog
-          ports:
-            - "1025:1025" # SMTP
-            - "8025:8025" # Interface Web
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_started
 
 volumes:
   pgdata:
+
