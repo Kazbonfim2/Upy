@@ -58,9 +58,14 @@ export async function runOne(monitorId: number) {
   } else if (action === "close" && open) {
     await db
       .update(incidents)
-      .set({ endedAt: new Date(), lastError: null })
+      .set({ endedAt: new Date() })
       .where(eq(incidents.id, open.id));
     await fireAlerts(monitor.id, monitor.name, monitor.url, true, `latência ${result.latencyMs}ms`);
+  } else if (!ok && open) {
+    await db
+      .update(incidents)
+      .set({ lastError: result.error ?? `HTTP ${result.statusCode}` })
+      .where(eq(incidents.id, open.id));
   }
 
   return row;

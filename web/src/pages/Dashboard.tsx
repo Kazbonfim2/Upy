@@ -759,21 +759,29 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
-                        <TableHead className="w-56">Início</TableHead>
-                        <TableHead className="w-56">Fim</TableHead>
+                        <TableHead className="w-28">Status</TableHead>
+                        <TableHead className="w-48">Início</TableHead>
+                        <TableHead className="w-48">Fim</TableHead>
                         <TableHead className="w-auto">Erro</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selected.incidents.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={3}>Nenhum incidente.</TableCell>
+                          <TableCell colSpan={4}>Nenhum incidente.</TableCell>
                         </TableRow>
                       ) : (
                         selected.incidents.map((i) => (
                           <TableRow key={i.id}>
+                            <TableCell>
+                              {i.endedAt ? (
+                                <Badge variant="success">resolvido</Badge>
+                              ) : (
+                                <Badge variant="error">aberto</Badge>
+                              )}
+                            </TableCell>
                             <TableCell>{fmt(i.startedAt)}</TableCell>
-                            <TableCell>{i.endedAt ? fmt(i.endedAt) : "aberto"}</TableCell>
+                            <TableCell>{i.endedAt ? fmt(i.endedAt) : "—"}</TableCell>
                             <TableCell className="max-w-md truncate">{i.lastError ?? "—"}</TableCell>
                           </TableRow>
                         ))
