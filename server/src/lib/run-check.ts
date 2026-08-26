@@ -1,35 +1,37 @@
 import { and, desc, eq, isNull, sql as dsql } from "drizzle-orm";
-import { db } from "../db";
+import { db, sql } from "../db";
 import { alerts, checks, incidents, monitors, services } from "../db/schema";
 import { maybeOpenAiCard } from "./groq";
-import { isDue, isUp, nextIncidentAction } from "./health";
+import { isUp, nextIncidentAction } from "./health";
 import { discordPayload, sendEmail, sendHttpJson, webhookPayload } from "./notify";
 import { probe } from "./probe";
 import { buildUrl } from "./validate";
 
-export async function runOne(monitorId: number) {
-  const [row] = await db
-    .select({
-      monitor: monitors,
-      service: services,
-    })
-    .from(monitors)
-    .leftJoin(services, eq(monitors.serviceId, services.id))
-    .where(eq(monitors.id, monitorId));
+export type MonitorExecutionTarget = {
+  id: number;
+  name: string;
+  path: string;
+  url?: string | null;
+  method: string;
+  intervalSeconds: number;
+  timeoutMs: number;
+  expectedStatus: number;
+  body?: string | null;
+  baseUrl?: string | null;
+};
 
-  if (!row || !row.monitor) throw new Error("monitor não encontrado");
-  const { monitor, service } = row;
-  const fullUrl = service ? buildUrl(service.baseUrl, monitor.path) : (monitor.url || "");
+export async function executeCheck(target: MonitorExecutionTarget) {
+  const fullUrl = target.baseUrl ? buildUrl(target.baseUrl, target.path) : (target.url || "");
   if (!fullUrl) throw new Error("URL do monitor inválida");
 
-  const result = await probe(fullUrl, monitor.method, monitor.timeoutMs, monitor.body);
-  const ok = isUp(result, monitor.expectedStatus);
-  const errDetail = result.error ?? (ok ? null : `HTTP ${result.statusCode} (esperado ${monitor.expectedStatus})`);
+  const result = await probe(fullUrl, target.method, target.timeoutMs, target.body);
+  const ok = isUp(result, target.expectedStatus);
+  const errDetail = result.error ?? (ok ? null : `HTTP ${result.statusCode} (esperado ${target.expectedStatus})`);
 
   const [checkRow] = await db
     .insert(checks)
     .values({
-      monitorId: monitor.id,
+      monitorId: target.id,
       ok,
       statusCode: result.statusCode,
       latencyMs: result.latencyMs,
@@ -47,35 +49,39 @@ export async function runOne(monitorId: number) {
       lastError: errDetail,
       lastCheckedAt: new Date(),
     })
-    .where(eq(monitors.id, monitor.id));
+    .where(eq(monitors.id, target.id));
 
   const [open] = await db
     .select()
     .from(incidents)
-    .where(and(eq(incidents.monitorId, monitor.id), isNull(incidents.endedAt)))
+    .where(and(eq(incidents.monitorId, target.id), isNull(incidents.endedAt)))
     .limit(1);
 
   const action = nextIncidentAction(ok, Boolean(open));
   if (action === "open") {
     await db.insert(incidents).values({
-      monitorId: monitor.id,
+      monitorId: target.id,
       lastError: errDetail ?? "Erro desconhecido",
       responseBody: result.responseBody,
     });
-    await fireAlerts(monitor.id, monitor.name, fullUrl, false, errDetail ?? "Erro desconhecido");
-    await maybeOpenAiCard(monitor.id, {
+    fireAlerts(target.id, target.name, fullUrl, false, errDetail ?? "Erro desconhecido").catch((err) =>
+      console.error(`alerta monitor=${target.id} erro:`, err),
+    );
+    maybeOpenAiCard(target.id, {
       url: fullUrl,
-      method: monitor.method,
+      method: target.method,
       statusCode: result.statusCode,
       latencyMs: result.latencyMs,
       error: errDetail,
-    });
+    }).catch((err) => console.error(`groq monitor=${target.id} erro:`, err));
   } else if (action === "close" && open) {
     await db
       .update(incidents)
       .set({ endedAt: new Date() })
       .where(eq(incidents.id, open.id));
-    await fireAlerts(monitor.id, monitor.name, fullUrl, true, `latência ${result.latencyMs}ms`);
+    fireAlerts(target.id, target.name, fullUrl, true, `latência ${result.latencyMs}ms`).catch((err) =>
+      console.error(`alerta monitor=${target.id} erro:`, err),
+    );
   } else if (!ok && open) {
     await db
       .update(incidents)
@@ -87,6 +93,28 @@ export async function runOne(monitorId: number) {
   }
 
   return checkRow;
+}
+
+export async function runOne(monitorId: number) {
+  const [row] = await db
+    .select({
+      id: monitors.id,
+      name: monitors.name,
+      path: monitors.path,
+      url: monitors.url,
+      method: monitors.method,
+      intervalSeconds: monitors.intervalSeconds,
+      timeoutMs: monitors.timeoutMs,
+      expectedStatus: monitors.expectedStatus,
+      body: monitors.body,
+      baseUrl: services.baseUrl,
+    })
+    .from(monitors)
+    .leftJoin(services, eq(monitors.serviceId, services.id))
+    .where(eq(monitors.id, monitorId));
+
+  if (!row) throw new Error("monitor não encontrado");
+  return executeCheck(row);
 }
 
 // ponytail: pool de concorrência nativo sem dependências externas.
@@ -116,6 +144,31 @@ export async function runWithLimit<T, R>(
   return results;
 }
 
+export async function fetchDueMonitors(limit = 500): Promise<MonitorExecutionTarget[]> {
+  const rows = await sql<MonitorExecutionTarget[]>`
+    SELECT
+      m.id,
+      m.name,
+      m.path,
+      m.url,
+      m.method,
+      m.interval_seconds as "intervalSeconds",
+      m.timeout_ms as "timeoutMs",
+      m.expected_status as "expectedStatus",
+      m.body,
+      s.base_url as "baseUrl"
+    FROM monitors m
+    LEFT JOIN services s ON m.service_id = s.id
+    WHERE m.enabled = true
+      AND (
+        m.last_checked_at IS NULL
+        OR m.last_checked_at <= now() - (m.interval_seconds || ' seconds')::interval
+      )
+    LIMIT ${limit}
+  `;
+  return rows;
+}
+
 const inFlight = new Set<number>();
 let isPolling = false;
 
@@ -123,18 +176,17 @@ export async function runDue(concurrency = Number(process.env.CHECK_CONCURRENCY 
   if (isPolling) return;
   isPolling = true;
   try {
-    const now = new Date();
-    const list = await db.select().from(monitors).where(eq(monitors.enabled, true));
-    const due = list.filter((m) => isDue(m.lastCheckedAt, m.intervalSeconds, now) && !inFlight.has(m.id));
+    const due = await fetchDueMonitors();
+    const ready = due.filter((m) => !inFlight.has(m.id));
 
-    if (due.length === 0) return;
+    if (ready.length === 0) return;
 
-    for (const m of due) inFlight.add(m.id);
+    for (const m of ready) inFlight.add(m.id);
 
     // Dispara lote sem bloquear o próximo tick do agendador
-    runWithLimit(due, concurrency, async (m) => {
+    runWithLimit(ready, concurrency, async (m) => {
       try {
-        await runOne(m.id);
+        await executeCheck(m);
       } catch (err) {
         console.error(`check monitor=${m.id} falhou:`, err);
       } finally {

@@ -97,6 +97,8 @@ export async function ensureSchema() {
   await sql`CREATE INDEX IF NOT EXISTS incidents_monitor_open_idx ON incidents (monitor_id) WHERE ended_at IS NULL`;
   await sql`CREATE INDEX IF NOT EXISTS cards_monitor_idx ON cards (monitor_id)`;
   await sql`CREATE INDEX IF NOT EXISTS monitors_service_idx ON monitors (service_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS monitors_due_idx ON monitors (enabled, last_checked_at) WHERE enabled = true`;
+  await sql`CREATE INDEX IF NOT EXISTS alerts_monitor_idx ON alerts (monitor_id)`;
 
   // Migrar monitores existentes que não possuem service_id vinculado
   const unlinked = await sql`SELECT id, name, url FROM monitors WHERE service_id IS NULL`;
