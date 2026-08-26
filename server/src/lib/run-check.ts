@@ -1,20 +1,32 @@
 import { and, desc, eq, isNull, sql as dsql } from "drizzle-orm";
 import { db } from "../db";
-import { alerts, checks, incidents, monitors } from "../db/schema";
+import { alerts, checks, incidents, monitors, services } from "../db/schema";
 import { maybeOpenAiCard } from "./groq";
 import { isDue, isUp, nextIncidentAction } from "./health";
 import { discordPayload, sendEmail, sendHttpJson, webhookPayload } from "./notify";
 import { probe } from "./probe";
+import { buildUrl } from "./validate";
 
 export async function runOne(monitorId: number) {
-  const [monitor] = await db.select().from(monitors).where(eq(monitors.id, monitorId));
-  if (!monitor) throw new Error("monitor não encontrado");
+  const [row] = await db
+    .select({
+      monitor: monitors,
+      service: services,
+    })
+    .from(monitors)
+    .leftJoin(services, eq(monitors.serviceId, services.id))
+    .where(eq(monitors.id, monitorId));
 
-  const result = await probe(monitor.url, monitor.method, monitor.timeoutMs, monitor.body);
+  if (!row || !row.monitor) throw new Error("monitor não encontrado");
+  const { monitor, service } = row;
+  const fullUrl = service ? buildUrl(service.baseUrl, monitor.path) : (monitor.url || "");
+  if (!fullUrl) throw new Error("URL do monitor inválida");
+
+  const result = await probe(fullUrl, monitor.method, monitor.timeoutMs, monitor.body);
   const ok = isUp(result, monitor.expectedStatus);
   const errDetail = result.error ?? (ok ? null : `HTTP ${result.statusCode} (esperado ${monitor.expectedStatus})`);
 
-  const [row] = await db
+  const [checkRow] = await db
     .insert(checks)
     .values({
       monitorId: monitor.id,
@@ -50,9 +62,9 @@ export async function runOne(monitorId: number) {
       lastError: errDetail ?? "Erro desconhecido",
       responseBody: result.responseBody,
     });
-    await fireAlerts(monitor.id, monitor.name, monitor.url, false, errDetail ?? "Erro desconhecido");
+    await fireAlerts(monitor.id, monitor.name, fullUrl, false, errDetail ?? "Erro desconhecido");
     await maybeOpenAiCard(monitor.id, {
-      url: monitor.url,
+      url: fullUrl,
       method: monitor.method,
       statusCode: result.statusCode,
       latencyMs: result.latencyMs,
@@ -63,7 +75,7 @@ export async function runOne(monitorId: number) {
       .update(incidents)
       .set({ endedAt: new Date() })
       .where(eq(incidents.id, open.id));
-    await fireAlerts(monitor.id, monitor.name, monitor.url, true, `latência ${result.latencyMs}ms`);
+    await fireAlerts(monitor.id, monitor.name, fullUrl, true, `latência ${result.latencyMs}ms`);
   } else if (!ok && open) {
     await db
       .update(incidents)
@@ -74,7 +86,7 @@ export async function runOne(monitorId: number) {
       .where(eq(incidents.id, open.id));
   }
 
-  return row;
+  return checkRow;
 }
 
 export async function runDue() {

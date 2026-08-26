@@ -3,23 +3,63 @@ import { z } from "zod";
 const METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] as const;
 const CHANNELS = ["email", "discord", "webhook"] as const;
 
-export function parseUrl(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("url obrigatória");
+export function parseBaseUrl(raw: unknown): string {
+  if (typeof raw !== "string" || !raw.trim()) throw new Error("url base obrigatória");
   let u: URL;
   try {
-    u = new URL(raw);
+    u = new URL(raw.trim());
   } catch {
-    throw new Error("url inválida");
+    throw new Error("url base inválida");
   }
   if (u.protocol !== "http:" && u.protocol !== "https:") {
-    throw new Error("url precisa ser http ou https");
+    throw new Error("url base precisa ser http ou https");
   }
-  return u.toString();
+  const cleanPath = u.pathname.replace(/\/+$/, "");
+  return `${u.protocol}//${u.host}${cleanPath}`;
+}
+
+export function parsePath(raw: unknown): string {
+  if (raw === undefined || raw === null || raw === "") return "/";
+  if (typeof raw !== "string") throw new Error("caminho inválido");
+  const trimmed = raw.trim();
+  if (!trimmed) return "/";
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+export function buildUrl(baseUrl: string, path: string): string {
+  const cleanBase = (baseUrl || "").trim().replace(/\/+$/, "");
+  const trimmed = (path || "/").trim();
+  const cleanPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${cleanBase}${cleanPath}`;
+}
+
+export type ServiceInput = {
+  name: string;
+  baseUrl: string;
+};
+
+const serviceBaseSchema = z.object({
+  name: z.string().trim().min(1, "name obrigatório"),
+  baseUrl: z.string().trim().transform(parseBaseUrl),
+});
+
+export const serviceSchema = serviceBaseSchema;
+export const servicePatchSchema = serviceBaseSchema.partial();
+
+export function parseService(body: Record<string, unknown>, partial = false): Partial<ServiceInput> {
+  const schema = partial ? servicePatchSchema : serviceSchema;
+  const res = schema.safeParse(body);
+  if (!res.success) {
+    throw new Error(res.error.issues[0]?.message || "dados do serviço inválidos");
+  }
+  return res.data;
 }
 
 export type MonitorInput = {
+  serviceId: number;
   name: string;
-  url: string;
+  path: string;
+  url?: string | null;
   method: string;
   intervalSeconds: number;
   timeoutMs: number;
@@ -45,8 +85,10 @@ const jsonBodySchema = z
   );
 
 const monitorBaseSchema = z.object({
+  serviceId: z.coerce.number().int().min(1, "serviceId obrigatório"),
   name: z.string().trim().min(1, "name obrigatório"),
-  url: z.string().trim().transform(parseUrl),
+  path: z.string().trim().transform(parsePath).default("/"),
+  url: z.string().trim().optional(),
   method: z
     .string()
     .transform((m) => m.toUpperCase())
@@ -106,7 +148,8 @@ export const alertSchema = z
       }
     } else {
       try {
-        parseUrl(data.target);
+        const u = new URL(data.target);
+        if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error();
       } catch {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

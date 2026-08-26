@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { ensureSchema } from "./db";
 import { monitorRoutes } from "./routes/monitors";
+import { serviceRoutes } from "./routes/services";
 
 const app = new Hono();
 
@@ -21,6 +22,7 @@ app.onError((err, c) => {
 });
 
 app.get("/health", (c) => c.json({ ok: true }));
+app.route("/api/services", serviceRoutes);
 app.route("/api/monitors", monitorRoutes);
 
 const port = Number(process.env.API_PORT || 3000);

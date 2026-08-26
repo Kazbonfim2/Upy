@@ -10,10 +10,20 @@ export const db = drizzle(sql, { schema });
 
 export async function ensureSchema() {
   await sql`
-    CREATE TABLE IF NOT EXISTS monitors (
+    CREATE TABLE IF NOT EXISTS services (
       id serial PRIMARY KEY,
       name text NOT NULL,
-      url text NOT NULL,
+      base_url text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS monitors (
+      id serial PRIMARY KEY,
+      service_id integer REFERENCES services(id) ON DELETE CASCADE,
+      name text NOT NULL,
+      path text NOT NULL DEFAULT '/',
+      url text,
       method text NOT NULL DEFAULT 'GET',
       interval_seconds integer NOT NULL DEFAULT 60,
       timeout_ms integer NOT NULL DEFAULT 5000,
@@ -71,7 +81,11 @@ export async function ensureSchema() {
       created_at timestamptz NOT NULL DEFAULT now()
     )
   `;
+  await sql`ALTER TABLE monitors ADD COLUMN IF NOT EXISTS service_id integer REFERENCES services(id) ON DELETE CASCADE`;
+  await sql`ALTER TABLE monitors ADD COLUMN IF NOT EXISTS path text DEFAULT '/'`;
   await sql`ALTER TABLE monitors ADD COLUMN IF NOT EXISTS body text`;
+  await sql`ALTER TABLE monitors ALTER COLUMN url DROP NOT NULL`;
+  await sql`ALTER TABLE monitors ALTER COLUMN url SET DEFAULT ''`;
   await sql`ALTER TABLE cards ADD COLUMN IF NOT EXISTS resolved boolean NOT NULL DEFAULT false`;
   await sql`ALTER TABLE cards ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'manual'`;
   await sql`ALTER TABLE checks ADD COLUMN IF NOT EXISTS response_body text`;
@@ -79,4 +93,37 @@ export async function ensureSchema() {
   await sql`CREATE INDEX IF NOT EXISTS checks_monitor_checked_idx ON checks (monitor_id, checked_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS incidents_monitor_open_idx ON incidents (monitor_id) WHERE ended_at IS NULL`;
   await sql`CREATE INDEX IF NOT EXISTS cards_monitor_idx ON cards (monitor_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS monitors_service_idx ON monitors (service_id)`;
+
+  // Migrar monitores existentes que não possuem service_id vinculado
+  const unlinked = await sql`SELECT id, name, url FROM monitors WHERE service_id IS NULL`;
+  for (const m of unlinked) {
+    if (!m.url) continue;
+    try {
+      const parsed = new URL(m.url);
+      const baseUrl = `${parsed.protocol}//${parsed.host}`;
+      const path = (parsed.pathname || "/") + (parsed.search || "") + (parsed.hash || "");
+      const [svc] = await sql`
+        INSERT INTO services (name, base_url)
+        VALUES (${m.name || 'Serviço'}, ${baseUrl})
+        RETURNING id
+      `;
+      await sql`
+        UPDATE monitors
+        SET service_id = ${svc.id}, path = ${path}
+        WHERE id = ${m.id}
+      `;
+    } catch {
+      const [svc] = await sql`
+        INSERT INTO services (name, base_url)
+        VALUES (${m.name || 'Serviço'}, 'http://localhost')
+        RETURNING id
+      `;
+      await sql`
+        UPDATE monitors
+        SET service_id = ${svc.id}, path = '/'
+        WHERE id = ${m.id}
+      `;
+    }
+  }
 }

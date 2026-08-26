@@ -7,10 +7,20 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-export const monitors = pgTable("monitors", {
+export const services = pgTable("services", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  url: text("url").notNull(),
+  baseUrl: text("base_url").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const monitors = pgTable("monitors", {
+  id: serial("id").primaryKey(),
+  serviceId: integer("service_id")
+    .notNull()
+    .references(() => services.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  path: text("path").notNull().default("/"),
   method: text("method").notNull().default("GET"),
   intervalSeconds: integer("interval_seconds").notNull().default(60),
   timeoutMs: integer("timeout_ms").notNull().default(5000),

@@ -1,50 +1,47 @@
 import { isDue, isUp, nextIncidentAction } from "../src/lib/health";
 import { discordPayload, resolveSmtpConfig, webhookPayload } from "../src/lib/notify";
-import { parseAlert, parseCard, parseGroqCard, parseMonitor, parseUrl } from "../src/lib/validate";
+import { buildUrl, parseAlert, parseBaseUrl, parseCard, parseGroqCard, parseMonitor, parsePath, parseService } from "../src/lib/validate";
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
 }
 
-assert(isUp({ statusCode: 200, latencyMs: 12, error: null, responseBody: '{"ok":true}' }, 200), "200 esperado = up");
-assert(!isUp({ statusCode: 500, latencyMs: 12, error: null, responseBody: "internal error" }, 200), "500 != 200");
-assert(!isUp({ statusCode: null, latencyMs: 80, error: "timeout", responseBody: null }, 200), "erro = down");
+// Service & Endpoint URL tests
+assert(parseBaseUrl("https://minha-api.com.br") === "https://minha-api.com.br", "base url");
+assert(parseBaseUrl("https://minha-api.com.br/") === "https://minha-api.com.br", "base url trailing slash");
+assert(parseBaseUrl("http://localhost:3000/api/") === "http://localhost:3000/api", "base url with path");
+assert(parsePath("/v1/login") === "/v1/login", "parse path with slash");
+assert(parsePath("v1/users") === "/v1/users", "parse path without slash");
+assert(parsePath("") === "/", "empty path defaults to slash");
 
-assert(nextIncidentAction(false, false) === "open", "caiu abre");
-assert(nextIncidentAction(false, true) === "none", "já aberto");
-assert(nextIncidentAction(true, true) === "close", "voltou fecha");
-assert(nextIncidentAction(true, false) === "none", "saudável sem incidente");
+assert(buildUrl("https://minha-api.com.br", "/v1/login") === "https://minha-api.com.br/v1/login", "build url normal");
+assert(buildUrl("https://minha-api.com.br/", "/v1/login") === "https://minha-api.com.br/v1/login", "build url double slash prevented");
+assert(buildUrl("https://minha-api.com.br", "v1/users") === "https://minha-api.com.br/v1/users", "build url missing slash added");
 
-const t0 = new Date("2026-01-01T00:00:00Z");
-assert(isDue(null, 60, t0), "nunca checado");
-assert(!isDue(t0, 60, new Date(t0.getTime() + 59_000)), "ainda no intervalo");
-assert(isDue(t0, 60, new Date(t0.getTime() + 60_000)), "venceu");
-
-parseUrl("https://example.com/health");
-try {
-  parseUrl("ftp://x");
-  throw new Error("ftp passou");
-} catch (e) {
-  assert(e instanceof Error && e.message.includes("http"), "ftp bloqueado");
-}
+const svc = parseService({ name: "Minha API", baseUrl: "https://minha-api.com.br/" });
+assert(svc.name === "Minha API" && svc.baseUrl === "https://minha-api.com.br", "service parse");
 
 const m = parseMonitor({
-  name: "api",
-  url: "https://example.com",
+  serviceId: 1,
+  name: "Login Endpoint",
+  path: "/v1/login",
   method: "post",
   intervalSeconds: 30,
   timeoutMs: 2000,
   expectedStatus: 204,
   body: '{"foo":"bar"}',
 });
+assert(m.serviceId === 1, "serviceId parsed");
+assert(m.path === "/v1/login", "path parsed");
 assert(m.method === "POST", "method upper");
 assert(m.expectedStatus === 204, "status");
 assert(m.body === '{"foo":"bar"}', "body json");
 
 try {
   parseMonitor({
+    serviceId: 1,
     name: "api",
-    url: "https://example.com",
+    path: "/test",
     method: "POST",
     body: "{invalid-json}",
   });

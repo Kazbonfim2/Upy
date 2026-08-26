@@ -30,4 +30,8 @@ O dashboard atualiza a lista a cada 10s. Se eu dependesse do objeto do monitor s
 
 Quando precisei criar o reset de histórico e métricas, a tentação seria pausar o monitor ou manipular timestamps em todas as queries. A saída mais limpa foi simplesmente deletar os checks, incidentes e cards associados, resetando o status atual para nulo. O worker continua rodando em paz e, no próximo ciclo, inicia um novo histórico do zero sem travar nada nem perder a configuração dos alertas.
 
+## Migrar URLs soltas para Serviços sem quebrar quem já estava rodando
+
+Cadastrar apenas uma URL por monitor limitava muito quando uma API tinha 10 rotas diferentes. Ao introduzir o conceito de Serviço com URL Base e múltiplos endpoints vinculados por caminho relativo (`path`), o grande cuidado foi não quebrar os monitores pré-existentes. Em vez de recriar tabelas ou exigir migração manual, os monitores antigos foram automaticamente associados a serviços padrão na inicialização do schema, e a URL completa passou a ser montada em tempo de execução (`baseUrl + path`). Ao trocar a URL Base de um serviço, todos os endpoints passam a apontar para o novo endereço de imediato sem tocar em cada linha de monitor.
+
 revisado com IA

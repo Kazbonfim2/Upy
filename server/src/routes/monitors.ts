@@ -1,22 +1,52 @@
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db";
-import { alerts, cards, checks, incidents, monitors } from "../db/schema";
+import { alerts, cards, checks, incidents, monitors, services } from "../db/schema";
 import { history, incidentList, runOne, uptime } from "../lib/run-check";
-import { parseAlert, parseCard, parseMonitor } from "../lib/validate";
+import { buildUrl, parseAlert, parseCard, parseMonitor } from "../lib/validate";
 
 export const monitorRoutes = new Hono();
 
 monitorRoutes.get("/", async (c) => {
-  const rows = await db.select().from(monitors).orderBy(desc(monitors.createdAt));
-  return c.json(rows);
+  const rows = await db
+    .select({
+      id: monitors.id,
+      serviceId: monitors.serviceId,
+      name: monitors.name,
+      path: monitors.path,
+      method: monitors.method,
+      intervalSeconds: monitors.intervalSeconds,
+      timeoutMs: monitors.timeoutMs,
+      expectedStatus: monitors.expectedStatus,
+      body: monitors.body,
+      enabled: monitors.enabled,
+      lastOk: monitors.lastOk,
+      lastStatusCode: monitors.lastStatusCode,
+      lastLatencyMs: monitors.lastLatencyMs,
+      lastError: monitors.lastError,
+      lastCheckedAt: monitors.lastCheckedAt,
+      createdAt: monitors.createdAt,
+      serviceName: services.name,
+      baseUrl: services.baseUrl,
+    })
+    .from(monitors)
+    .leftJoin(services, eq(monitors.serviceId, services.id))
+    .orderBy(desc(monitors.createdAt));
+
+  const result = rows.map((r) => ({
+    ...r,
+    url: r.baseUrl ? buildUrl(r.baseUrl, r.path) : r.path,
+  }));
+
+  return c.json(result);
 });
 
 monitorRoutes.post("/", async (c) => {
   const body = (await c.req.json()) as Record<string, unknown>;
   const data = parseMonitor(body) as {
+    serviceId: number;
     name: string;
-    url: string;
+    path: string;
     method: string;
     intervalSeconds: number;
     timeoutMs: number;
@@ -30,7 +60,31 @@ monitorRoutes.post("/", async (c) => {
 
 monitorRoutes.get("/:id", async (c) => {
   const id = Number(c.req.param("id"));
-  const [row] = await db.select().from(monitors).where(eq(monitors.id, id));
+  const [row] = await db
+    .select({
+      id: monitors.id,
+      serviceId: monitors.serviceId,
+      name: monitors.name,
+      path: monitors.path,
+      method: monitors.method,
+      intervalSeconds: monitors.intervalSeconds,
+      timeoutMs: monitors.timeoutMs,
+      expectedStatus: monitors.expectedStatus,
+      body: monitors.body,
+      enabled: monitors.enabled,
+      lastOk: monitors.lastOk,
+      lastStatusCode: monitors.lastStatusCode,
+      lastLatencyMs: monitors.lastLatencyMs,
+      lastError: monitors.lastError,
+      lastCheckedAt: monitors.lastCheckedAt,
+      createdAt: monitors.createdAt,
+      serviceName: services.name,
+      baseUrl: services.baseUrl,
+    })
+    .from(monitors)
+    .leftJoin(services, eq(monitors.serviceId, services.id))
+    .where(eq(monitors.id, id));
+
   if (!row) return c.json({ error: "não encontrado" }, 404);
   const [stats, checks, incidents, alertRows, cardRows] = await Promise.all([
     uptime(id),
@@ -39,7 +93,8 @@ monitorRoutes.get("/:id", async (c) => {
     db.select().from(alerts).where(eq(alerts.monitorId, id)),
     db.select().from(cards).where(eq(cards.monitorId, id)).orderBy(desc(cards.createdAt)),
   ]);
-  return c.json({ ...row, stats, checks, incidents, alerts: alertRows, cards: cardRows });
+  const fullUrl = row.baseUrl ? buildUrl(row.baseUrl, row.path) : row.path;
+  return c.json({ ...row, url: fullUrl, stats, checks, incidents, alerts: alertRows, cards: cardRows });
 });
 
 monitorRoutes.patch("/:id", async (c) => {
