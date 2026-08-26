@@ -7,21 +7,29 @@ import { buildUrl, parseService } from "../lib/validate";
 export const serviceRoutes = new Hono();
 
 serviceRoutes.get("/", async (c) => {
-  const allServices = await db.select().from(services).orderBy(desc(services.createdAt));
-  const allMonitors = await db
-    .select()
-    .from(monitors)
-    .orderBy(desc(monitors.createdAt));
+  const [allServices, allMonitors] = await Promise.all([
+    db.select().from(services).orderBy(desc(services.createdAt)),
+    db.select().from(monitors).orderBy(desc(monitors.createdAt)),
+  ]);
+
+  const monitorsByService = new Map<number, (typeof allMonitors)[number][]>();
+  for (const m of allMonitors) {
+    if (m.serviceId == null) continue;
+    const group = monitorsByService.get(m.serviceId);
+    if (group) {
+      group.push(m);
+    } else {
+      monitorsByService.set(m.serviceId, [m]);
+    }
+  }
 
   const rows = allServices.map((s) => {
-    const serviceMonitors = allMonitors
-      .filter((m) => m.serviceId === s.id)
-      .map((m) => ({
-        ...m,
-        serviceName: s.name,
-        baseUrl: s.baseUrl,
-        url: buildUrl(s.baseUrl, m.path),
-      }));
+    const serviceMonitors = (monitorsByService.get(s.id) || []).map((m) => ({
+      ...m,
+      serviceName: s.name,
+      baseUrl: s.baseUrl,
+      url: buildUrl(s.baseUrl, m.path),
+    }));
 
     return {
       ...s,
