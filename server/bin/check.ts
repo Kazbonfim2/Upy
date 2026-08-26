@@ -104,4 +104,22 @@ assert(customSmtp.host === "custom.smtp.com" && customSmtp.port === 465 && custo
 // Reset state checks
 assert(isDue(null, 30, new Date()), "reset lastCheckedAt para null dispara check no proximo tick");
 
+// Concurrency pool test
+const { runWithLimit } = await import("../src/lib/run-check");
+const executed: number[] = [];
+let maxConcurrent = 0;
+let currentConcurrent = 0;
+
+await runWithLimit([1, 2, 3, 4, 5, 6], 2, async (n) => {
+  currentConcurrent++;
+  maxConcurrent = Math.max(maxConcurrent, currentConcurrent);
+  await new Promise((r) => setTimeout(r, 10));
+  executed.push(n);
+  currentConcurrent--;
+  return n * 2;
+});
+
+assert(executed.length === 6, "runWithLimit executou todos os itens");
+assert(maxConcurrent <= 2, "runWithLimit respeitou limite de concorrência");
+
 console.log("check ok");

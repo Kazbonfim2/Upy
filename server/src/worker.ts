@@ -14,17 +14,11 @@ while (true) {
   }
 }
 
-let busy = false;
-
 async function tick() {
-  if (busy) return;
-  busy = true;
   try {
     await runDue();
   } catch (err) {
-    console.error("worker:", err);
-  } finally {
-    busy = false;
+    console.error("worker tick:", err);
   }
 }
 

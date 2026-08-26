@@ -89,12 +89,61 @@ export async function runOne(monitorId: number) {
   return checkRow;
 }
 
-export async function runDue() {
-  const now = new Date();
-  const list = await db.select().from(monitors).where(eq(monitors.enabled, true));
-  const due = list.filter((m) => isDue(m.lastCheckedAt, m.intervalSeconds, now));
-  // ponytail: paralelismo nativo via Promise.allSettled. Limitar pool se passar de 1k URLs.
-  await Promise.allSettled(due.map((m) => runOne(m.id)));
+// ponytail: pool de concorrência nativo sem dependências externas.
+export async function runWithLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let index = 0;
+
+  async function worker() {
+    while (index < items.length) {
+      const i = index++;
+      try {
+        const val = await fn(items[i]);
+        results[i] = { status: "fulfilled", value: val };
+      } catch (reason) {
+        results[i] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  const workerCount = Math.min(limit, items.length);
+  const workers = Array.from({ length: workerCount }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+const inFlight = new Set<number>();
+let isPolling = false;
+
+export async function runDue(concurrency = Number(process.env.CHECK_CONCURRENCY || 25)) {
+  if (isPolling) return;
+  isPolling = true;
+  try {
+    const now = new Date();
+    const list = await db.select().from(monitors).where(eq(monitors.enabled, true));
+    const due = list.filter((m) => isDue(m.lastCheckedAt, m.intervalSeconds, now) && !inFlight.has(m.id));
+
+    if (due.length === 0) return;
+
+    for (const m of due) inFlight.add(m.id);
+
+    // Dispara lote sem bloquear o próximo tick do agendador
+    runWithLimit(due, concurrency, async (m) => {
+      try {
+        await runOne(m.id);
+      } catch (err) {
+        console.error(`check monitor=${m.id} falhou:`, err);
+      } finally {
+        inFlight.delete(m.id);
+      }
+    }).catch((err) => console.error("batch runner falhou:", err));
+  } finally {
+    isPolling = false;
+  }
 }
 
 export async function uptime(monitorId: number) {

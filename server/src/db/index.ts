@@ -2,10 +2,13 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error("DATABASE_URL ausente");
+const url = process.env.DATABASE_URL || "postgres://upy:upy@127.0.0.1:5432/upy";
 
-export const sql = postgres(url);
+export const sql = postgres(url, {
+  max: Number(process.env.DB_POOL_MAX || 25),
+  idle_timeout: 20,
+  connect_timeout: 10,
+});
 export const db = drizzle(sql, { schema });
 
 export async function ensureSchema() {
