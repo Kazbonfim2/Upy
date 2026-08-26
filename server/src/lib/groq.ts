@@ -22,8 +22,9 @@ export async function maybeOpenAiCard(
         messages: [
           {
             role: "system",
+            // Prompt de retorno para abertura de cards no Kanban
             content:
-              'Responda só JSON: {"name": string máx 100, "status": string máx 100 (ex: Crítico, Timeout, Erro 5xx), "description": string máx 300 com causa provável e ação}.',
+              'Evite truncar erros, como por exemplo: 4XX; Sua descrição deve ser assertiva, e breve, quando for conveniente, mostre exemplos; Responda só JSON: {"name": string máx 100, "status": string máx 100 (ex: Crítico, Timeout, Erro 5xx), "description": string máx 300 com causa provável e ação}.',
           },
           {
             role: "user",
