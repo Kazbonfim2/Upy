@@ -275,7 +275,7 @@ export function DashboardModals({
             onChange={(e) => onNewPathChange(e.target.value)}
             placeholder="/v1/health"
           />
-          <div className="mt-1 rounded bg-muted/50 p-2 text-xs font-mono text-muted-foreground break-all">
+          <div className="mx-auto mt-1 rounded bg-muted/50 p-2 text-xs font-mono text-muted-foreground break-all">
             URL monitorada:{" "}
             <span className="text-foreground font-semibold">
               {formatEndpointUrl(currentServiceForNew?.baseUrl, newPath)}
@@ -373,7 +373,7 @@ export function DashboardModals({
               required
               placeholder="/v1/login"
             />
-            <div className="mt-1 rounded bg-muted/50 p-2 text-xs font-mono text-muted-foreground break-all">
+            <div className="mx-auto mt-1 rounded bg-muted/50 p-2 text-xs font-mono text-muted-foreground break-all">
               URL monitorada:{" "}
               <span className="text-foreground font-semibold">
                 {formatEndpointUrl(editingEndpoint.baseUrl, editPath)}
