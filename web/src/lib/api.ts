@@ -83,6 +83,8 @@ export const api = {
     req<Monitor>(`/api/monitors/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   remove: (id: number) =>
     req<{ ok: boolean }>(`/api/monitors/${id}`, { method: "DELETE" }),
+  reset: (id: number) =>
+    req<{ ok: boolean }>(`/api/monitors/${id}/reset`, { method: "POST" }),
   checkNow: (id: number) =>
     req<CheckRow>(`/api/monitors/${id}/check`, { method: "POST" }),
   addAlert: (id: number, body: unknown) =>

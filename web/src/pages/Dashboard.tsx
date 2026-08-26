@@ -571,6 +571,27 @@ export default function Dashboard() {
               </Button>
               <Button
                 type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setConfirmState({
+                    title: `Resetar histórico de "${selected.name}"?`,
+                    description:
+                      "Todas as requisições, respostas, incidentes e métricas acumuladas serão limpos. A configuração do monitor e os alertas cadastrados serão mantidos.",
+                    confirmText: "Resetar",
+                    variant: "destructive",
+                    onConfirm: async () => {
+                      await api.reset(selected.id);
+                      toastManager.add({ title: "Histórico e métricas resetados", type: "success" });
+                      await refresh();
+                    },
+                  });
+                }}
+              >
+                Resetar
+              </Button>
+              <Button
+                type="button"
                 variant="destructive"
                 className="w-full sm:w-auto"
                 onClick={() => {

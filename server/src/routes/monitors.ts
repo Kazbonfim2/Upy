@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db";
-import { alerts, cards, monitors } from "../db/schema";
+import { alerts, cards, checks, incidents, monitors } from "../db/schema";
 import { history, incidentList, runOne, uptime } from "../lib/run-check";
 import { parseAlert, parseCard, parseMonitor } from "../lib/validate";
 
@@ -55,6 +55,30 @@ monitorRoutes.delete("/:id", async (c) => {
   const id = Number(c.req.param("id"));
   const [row] = await db.delete(monitors).where(eq(monitors.id, id)).returning();
   if (!row) return c.json({ error: "não encontrado" }, 404);
+  return c.json({ ok: true });
+});
+
+monitorRoutes.post("/:id/reset", async (c) => {
+  const id = Number(c.req.param("id"));
+  const [m] = await db.select().from(monitors).where(eq(monitors.id, id));
+  if (!m) return c.json({ error: "não encontrado" }, 404);
+
+  await Promise.all([
+    db.delete(checks).where(eq(checks.monitorId, id)),
+    db.delete(incidents).where(eq(incidents.monitorId, id)),
+    db.delete(cards).where(eq(cards.monitorId, id)),
+    db
+      .update(monitors)
+      .set({
+        lastOk: null,
+        lastStatusCode: null,
+        lastLatencyMs: null,
+        lastError: null,
+        lastCheckedAt: null,
+      })
+      .where(eq(monitors.id, id)),
+  ]);
+
   return c.json({ ok: true });
 });
 

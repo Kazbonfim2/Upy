@@ -5,5 +5,6 @@ dist
 web/dist
 server/node_modules
 web/node_modules
+ABOUT.md
 PROJECT.mdc
 .cursor

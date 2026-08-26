@@ -26,4 +26,8 @@ Drizzle no tipo, `CREATE TABLE IF NOT EXISTS` no boot. API e worker os dois cham
 
 O dashboard atualiza a lista a cada 10s. Se eu dependesse do objeto do monitor selecionado no `useCallback`, cada render gerava função nova, o efeito disparava de novo, e a aba de histórico piscava. Passei a guardar só o `id` selecionado. A lista e o detalhe recarregam juntos, sem loop.
 
+## Resetar histórico sem derrubar o worker
+
+Quando precisei criar o reset de histórico e métricas, a tentação seria pausar o monitor ou manipular timestamps em todas as queries. A saída mais limpa foi simplesmente deletar os checks, incidentes e cards associados, resetando o status atual para nulo. O worker continua rodando em paz e, no próximo ciclo, inicia um novo histórico do zero sem travar nada nem perder a configuração dos alertas.
+
 revisado com IA

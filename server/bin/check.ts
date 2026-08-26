@@ -104,4 +104,7 @@ const customSmtp = resolveSmtpConfig({
 });
 assert(customSmtp.host === "custom.smtp.com" && customSmtp.port === 465 && customSmtp.secure === true, "custom smtp config");
 
+// Reset state checks
+assert(isDue(null, 30, new Date()), "reset lastCheckedAt para null dispara check no proximo tick");
+
 console.log("check ok");
