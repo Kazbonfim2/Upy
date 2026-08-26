@@ -11,7 +11,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
 
 export interface ModalProps {
   open?: boolean;
@@ -65,9 +64,9 @@ export function Modal({
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
         {onSubmit ? (
-          <Form className="contents" onSubmit={onSubmit}>
+          <form className="contents" onSubmit={onSubmit}>
             {content}
-          </Form>
+          </form>
         ) : (
           content
         )}

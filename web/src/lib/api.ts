@@ -13,9 +13,21 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return data;
 }
 
-export type Monitor = {
+export type Service = {
   id: number;
   name: string;
+  baseUrl: string;
+  createdAt: string;
+  monitors?: Monitor[];
+};
+
+export type Monitor = {
+  id: number;
+  serviceId: number;
+  serviceName?: string;
+  baseUrl?: string;
+  name: string;
+  path: string;
   url: string;
   method: string;
   intervalSeconds: number;
@@ -75,6 +87,14 @@ export type MonitorDetail = Monitor & {
 };
 
 export const api = {
+  listServices: () => req<Service[]>("/api/services"),
+  getService: (id: number) => req<Service>(`/api/services/${id}`),
+  createService: (body: { name: string; baseUrl: string }) =>
+    req<Service>("/api/services", { method: "POST", body: JSON.stringify(body) }),
+  patchService: (id: number, body: { name?: string; baseUrl?: string }) =>
+    req<Service>(`/api/services/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  removeService: (id: number) =>
+    req<{ ok: boolean }>(`/api/services/${id}`, { method: "DELETE" }),
   list: () => req<Monitor[]>("/api/monitors"),
   get: (id: number) => req<MonitorDetail>(`/api/monitors/${id}`),
   create: (body: unknown) =>
