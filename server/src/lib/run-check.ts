@@ -198,15 +198,17 @@ export async function runDue(concurrency = Number(process.env.CHECK_CONCURRENCY 
   }
 }
 
-export async function uptime(monitorId: number) {
-  const [agg] = await db
-    .select({
-      total: dsql<number>`count(*)::int`,
-      ok: dsql<number>`count(*) filter (where ${checks.ok})::int`,
-      avgMs: dsql<number>`coalesce(avg(${checks.latencyMs}), 0)::int`,
-    })
-    .from(checks)
-    .where(eq(checks.monitorId, monitorId));
+// ponytail: cálculo de uptime em janela de tempo (padrão 24h) para evitar full scan histórico
+export async function uptime(monitorId: number, windowHours = 24) {
+  const [agg] = await sql<[{ total: number; ok: number; avgMs: number }]>`
+    SELECT
+      count(*)::int as total,
+      count(*) filter (where ok)::int as ok,
+      coalesce(avg(latency_ms), 0)::int as "avgMs"
+    FROM checks
+    WHERE monitor_id = ${monitorId}
+      AND checked_at >= now() - (${windowHours} || ' hours')::interval
+  `;
   const total = agg?.total ?? 0;
   const okCount = agg?.ok ?? 0;
   return {
@@ -215,6 +217,22 @@ export async function uptime(monitorId: number) {
     pct: total === 0 ? null : Math.round((okCount / total) * 1000) / 10,
     avgMs: agg?.avgMs ?? 0,
   };
+}
+
+// ponytail: limpeza em lotes de 5000 registros para não travar locks no Postgres
+export async function purgeOldChecks(retentionDays = 30) {
+  try {
+    await sql`
+      DELETE FROM checks
+      WHERE id IN (
+        SELECT id FROM checks
+        WHERE checked_at < now() - (${retentionDays} || ' days')::interval
+        LIMIT 5000
+      )
+    `;
+  } catch (err) {
+    console.error("purgeOldChecks falhou:", err);
+  }
 }
 
 export async function history(monitorId: number, limit = 50) {

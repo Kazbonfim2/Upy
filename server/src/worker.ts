@@ -1,5 +1,5 @@
 import { ensureSchema } from "./db";
-import { runDue } from "./lib/run-check";
+import { purgeOldChecks, runDue } from "./lib/run-check";
 
 process.on("unhandledRejection", (reason) => console.error("worker unhandled rejection:", reason));
 process.on("uncaughtException", (err) => console.error("worker uncaught exception:", err));
@@ -14,9 +14,15 @@ while (true) {
   }
 }
 
+let tickCount = 0;
+
 async function tick() {
   try {
     await runDue();
+    tickCount++;
+    if (tickCount % 3600 === 0) {
+      purgeOldChecks().catch((err) => console.error("worker purge erro:", err));
+    }
   } catch (err) {
     console.error("worker tick:", err);
   }

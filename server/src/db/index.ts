@@ -94,6 +94,7 @@ export async function ensureSchema() {
   await sql`ALTER TABLE checks ADD COLUMN IF NOT EXISTS response_body text`;
   await sql`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS response_body text`;
   await sql`CREATE INDEX IF NOT EXISTS checks_monitor_checked_idx ON checks (monitor_id, checked_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS checks_checked_at_idx ON checks (checked_at)`;
   await sql`CREATE INDEX IF NOT EXISTS incidents_monitor_open_idx ON incidents (monitor_id) WHERE ended_at IS NULL`;
   await sql`CREATE INDEX IF NOT EXISTS cards_monitor_idx ON cards (monitor_id)`;
   await sql`CREATE INDEX IF NOT EXISTS monitors_service_idx ON monitors (service_id)`;
