@@ -259,22 +259,30 @@ async function fireAlerts(
   up: boolean,
   detail: string,
 ) {
-  const list = await db.select().from(alerts).where(eq(alerts.monitorId, monitorId));
-  for (const a of list) {
-    try {
-      if (a.channel === "email") {
-        await sendEmail(
-          a.target,
-          up ? `[upy] ${name} voltou` : `[upy] ${name} caiu`,
-          `${name}\n${url}\n${detail}`,
-        );
-      } else if (a.channel === "discord") {
-        await sendHttpJson(a.target, discordPayload(name, url, up, detail));
-      } else {
-        await sendHttpJson(a.target, webhookPayload(name, url, up, detail));
-      }
-    } catch (err) {
-      console.error(`alerta ${a.id} falhou:`, err);
-    }
+  try {
+    const list = await db.select().from(alerts).where(eq(alerts.monitorId, monitorId));
+    if (list.length === 0) return;
+
+    await Promise.allSettled(
+      list.map(async (a) => {
+        try {
+          if (a.channel === "email") {
+            await sendEmail(
+              a.target,
+              up ? `[upy] ${name} voltou` : `[upy] ${name} caiu`,
+              `${name}\n${url}\n${detail}`,
+            );
+          } else if (a.channel === "discord") {
+            await sendHttpJson(a.target, discordPayload(name, url, up, detail));
+          } else {
+            await sendHttpJson(a.target, webhookPayload(name, url, up, detail));
+          }
+        } catch (err) {
+          console.error(`alerta ${a.id} falhou:`, err);
+        }
+      }),
+    );
+  } catch (err) {
+    console.error(`fireAlerts monitor=${monitorId} falhou:`, err);
   }
 }

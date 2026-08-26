@@ -48,6 +48,24 @@ export function resolveSmtpConfig(env: Record<string, string | undefined> = proc
   };
 }
 
+let cachedTransporter: nodemailer.Transporter | null = null;
+
+export function getTransporter(): nodemailer.Transporter | null {
+  if (cachedTransporter) return cachedTransporter;
+  const config = resolveSmtpConfig(process.env);
+  if (!config.auth) return null;
+  cachedTransporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: config.auth,
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+  });
+  return cachedTransporter;
+}
+
 export async function sendEmail(to: string, subject: string, text: string) {
   const isDevLog = process.env.SMTP_DEV_LOG === "true";
   if (isDevLog) {
@@ -66,12 +84,8 @@ export async function sendEmail(to: string, subject: string, text: string) {
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: config.auth,
-  });
+  const transporter = getTransporter();
+  if (!transporter) return;
 
   await transporter.sendMail({
     from: config.from,
