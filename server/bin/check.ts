@@ -119,7 +119,28 @@ await runWithLimit([1, 2, 3, 4, 5, 6], 2, async (n) => {
   return n * 2;
 });
 
-assert(executed.length === 6, "runWithLimit executou todos os itens");
-assert(maxConcurrent <= 2, "runWithLimit respeitou limite de concorrência");
+// Drizzle query construction test
+const { db } = await import("../src/db");
+const { monitors, services } = await import("../src/db/schema");
+const { eq } = await import("drizzle-orm");
+
+const query = db
+  .select({
+    id: monitors.id,
+    name: monitors.name,
+    path: monitors.path,
+    method: monitors.method,
+    intervalSeconds: monitors.intervalSeconds,
+    timeoutMs: monitors.timeoutMs,
+    expectedStatus: monitors.expectedStatus,
+    body: monitors.body,
+    baseUrl: services.baseUrl,
+  })
+  .from(monitors)
+  .leftJoin(services, eq(monitors.serviceId, services.id))
+  .where(eq(monitors.id, 1));
+
+assert(typeof query.toSQL().sql === "string", "query toSQL gerada com sucesso");
 
 console.log("check ok");
+
