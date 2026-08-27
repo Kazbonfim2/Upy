@@ -145,7 +145,7 @@ export default function Home() {
                 Self-hosted: os checks saem da sua rede, os dados não saem do seu disco.
               </li>
             </ul>
-            <div className="mt-6">
+            <div className="mt-6 flex justify-center">
               <Button
                 variant="outline"
                 render={
