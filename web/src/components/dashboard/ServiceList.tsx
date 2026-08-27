@@ -124,9 +124,8 @@ export function ServiceList({
                     {endpoints.map((m) => (
                       <TableRow
                         key={m.id}
-                        className={`cursor-pointer transition-colors ${
-                          selectedId === m.id ? "bg-accent/40 font-medium" : ""
-                        }`}
+                        className={`cursor-pointer transition-colors hover:bg-muted/30 dark:hover:bg-muted/20 ${selectedId === m.id ? "bg-muted/80 dark:bg-muted/30 font-medium" : ""
+                          }`}
                         onClick={() => onSelectEndpoint(m.id)}
                       >
                         <TableCell className="font-medium">{m.name}</TableCell>
