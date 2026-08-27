@@ -420,7 +420,14 @@ export default function Dashboard() {
             services={services}
             allMonitors={list}
             selectedId={selectedId}
-            onSelectEndpoint={(id) => setSelectedId(id)}
+            onSelectEndpoint={(id) => {
+              if (selectedId === id) {
+                setSelectedId(null);
+                setSelected(null);
+              } else {
+                setSelectedId(id);
+              }
+            }}
             onNewEndpoint={(svcId) => {
               setSelectedServiceId(svcId);
               setNewPath("/");
