@@ -5,17 +5,16 @@ const CHANNELS = ["email", "discord", "webhook"] as const;
 
 export function parseBaseUrl(raw: unknown): string {
   if (typeof raw !== "string" || !raw.trim()) throw new Error("url base obrigatória");
-  let u: URL;
   try {
-    u = new URL(raw.trim());
-  } catch {
+    const u = new URL(raw.trim());
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      throw new Error("url base precisa ser http ou https");
+    }
+    return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, "")}`;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("http")) throw err;
     throw new Error("url base inválida");
   }
-  if (u.protocol !== "http:" && u.protocol !== "https:") {
-    throw new Error("url base precisa ser http ou https");
-  }
-  const cleanPath = u.pathname.replace(/\/+$/, "");
-  return `${u.protocol}//${u.host}${cleanPath}`;
 }
 
 export function parsePath(raw: unknown): string {
@@ -26,11 +25,8 @@ export function parsePath(raw: unknown): string {
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }
 
-export function buildUrl(baseUrl: string, path: string): string {
-  const cleanBase = (baseUrl || "").trim().replace(/\/+$/, "");
-  const trimmed = (path || "/").trim();
-  const cleanPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return `${cleanBase}${cleanPath}`;
+export function buildUrl(baseUrl = "", path = "/"): string {
+  return `${baseUrl.trim().replace(/\/+$/, "")}${parsePath(path)}`;
 }
 
 export type ServiceInput = {

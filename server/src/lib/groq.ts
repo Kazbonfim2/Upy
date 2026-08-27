@@ -22,30 +22,21 @@ export async function maybeOpenAiCard(
         messages: [
           {
             role: "system",
-            // Prompt de retorno para abertura de cards no Kanban
             content:
-              'Evite truncar erros, como por exemplo: 4XX; Sua descrição deve ser assertiva, e breve, quando for conveniente, mostre exemplos; Responda só JSON: {"name": string máx 100, "status": string máx 100 (ex: Crítico, Timeout, Erro 5xx), "description": string máx 300 com causa provável e ação}.',
+              'Responda só JSON: {"name": string máx 100, "status": string máx 100 (ex: Crítico, Timeout, Erro 5xx), "description": string máx 300 com causa provável e ação}.',
           },
-          {
-            role: "user",
-            content: JSON.stringify(facts),
-          },
+          { role: "user", content: JSON.stringify(facts) },
         ],
       }),
       signal: AbortSignal.timeout(8000),
     });
-    const reqId = res.headers.get("x-request-id") ?? "-";
-    if (!res.ok) throw new Error(`groq HTTP ${res.status} [reqId: ${reqId}]`);
+
+    if (!res.ok) return;
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = body.choices?.[0]?.message?.content;
-    if (!content) return;
-    const card = parseGroqCard(content);
+    const card = parseGroqCard(body.choices?.[0]?.message?.content || "");
     if (!card) return;
-    const [inserted] = await db
-      .insert(cards)
-      .values({ monitorId, ...card, resolved: false, source: "ai" })
-      .returning();
-    console.log(`[groq] card #${inserted?.id} criada monitor=${monitorId} reqId=${reqId}`);
+
+    await db.insert(cards).values({ monitorId, ...card, resolved: false, source: "ai" });
   } catch (err) {
     console.error("groq card falhou:", err);
   }
