@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BuyMeACoffee } from "@/components/BuyMeACoffee";
 import { Card, CardDescription, CardHeader, CardPanel, CardTitle } from "@/components/ui/card";
 import { Footer } from "@/components/Footer";
 import { GithubIcon } from "@/components/GithubIcon";
@@ -93,6 +94,7 @@ export default function Home() {
               <GithubIcon className="size-5" />
               Veja no GitHub
             </Button>
+            <BuyMeACoffee size="xl" />
           </div>
         </div>
       </section>
