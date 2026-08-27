@@ -9,13 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-export const DialogCreateHandle: typeof DialogPrimitive.createHandle =
-  DialogPrimitive.createHandle;
-
 export const Dialog: typeof DialogPrimitive.Root = DialogPrimitive.Root;
-
-export const DialogPortal: typeof DialogPrimitive.Portal =
-  DialogPrimitive.Portal;
 
 export function DialogTrigger(
   props: DialogPrimitive.Trigger.Props,
@@ -27,38 +21,6 @@ export function DialogClose(
   props: DialogPrimitive.Close.Props,
 ): React.ReactElement {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
-}
-
-export function DialogBackdrop({
-  className,
-  ...props
-}: DialogPrimitive.Backdrop.Props): React.ReactElement {
-  return (
-    <DialogPrimitive.Backdrop
-      className={cn(
-        "fixed inset-0 z-50 bg-black/32 backdrop-blur-sm transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
-        className,
-      )}
-      data-slot="dialog-backdrop"
-      {...props}
-    />
-  );
-}
-
-export function DialogViewport({
-  className,
-  ...props
-}: DialogPrimitive.Viewport.Props): React.ReactElement {
-  return (
-    <DialogPrimitive.Viewport
-      className={cn(
-        "fixed inset-0 z-50 grid grid-rows-[1fr_auto_3fr] justify-items-center p-4",
-        className,
-      )}
-      data-slot="dialog-viewport"
-      {...props}
-    />
-  );
 }
 
 export function DialogPopup({
@@ -76,13 +38,18 @@ export function DialogPopup({
   portalProps?: DialogPrimitive.Portal.Props;
 }): React.ReactElement {
   return (
-    <DialogPortal {...portalProps}>
-      <DialogBackdrop />
-      <DialogViewport
+    <DialogPrimitive.Portal {...portalProps}>
+      <DialogPrimitive.Backdrop
+        className="fixed inset-0 z-50 bg-black/32 backdrop-blur-sm transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0"
+        data-slot="dialog-backdrop"
+      />
+      <DialogPrimitive.Viewport
         className={cn(
+          "fixed inset-0 z-50 grid grid-rows-[1fr_auto_3fr] justify-items-center p-4",
           bottomStickOnMobile &&
             "max-sm:grid-rows-[1fr_auto] max-sm:p-0 max-sm:pt-12",
         )}
+        data-slot="dialog-viewport"
       >
         <DialogPrimitive.Popup
           className={cn(
@@ -106,8 +73,8 @@ export function DialogPopup({
             </DialogPrimitive.Close>
           )}
         </DialogPrimitive.Popup>
-      </DialogViewport>
-    </DialogPortal>
+      </DialogPrimitive.Viewport>
+    </DialogPrimitive.Portal>
   );
 }
 
@@ -213,8 +180,4 @@ export function DialogPanel({
   );
 }
 
-export {
-  DialogPrimitive,
-  DialogBackdrop as DialogOverlay,
-  DialogPopup as DialogContent,
-};
+export { DialogPrimitive };

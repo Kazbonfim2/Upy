@@ -4,52 +4,14 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import type React from "react";
 import { cn } from "@/lib/utils";
 
-export const AlertDialogCreateHandle: typeof AlertDialogPrimitive.createHandle =
-  AlertDialogPrimitive.createHandle;
-
 export const AlertDialog: typeof AlertDialogPrimitive.Root =
   AlertDialogPrimitive.Root;
-
-export const AlertDialogPortal: typeof AlertDialogPrimitive.Portal =
-  AlertDialogPrimitive.Portal;
 
 export function AlertDialogTrigger(
   props: AlertDialogPrimitive.Trigger.Props,
 ): React.ReactElement {
   return (
     <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
-  );
-}
-
-export function AlertDialogBackdrop({
-  className,
-  ...props
-}: AlertDialogPrimitive.Backdrop.Props): React.ReactElement {
-  return (
-    <AlertDialogPrimitive.Backdrop
-      className={cn(
-        "fixed inset-0 z-50 bg-black/32 backdrop-blur-sm transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
-        className,
-      )}
-      data-slot="alert-dialog-backdrop"
-      {...props}
-    />
-  );
-}
-
-export function AlertDialogViewport({
-  className,
-  ...props
-}: AlertDialogPrimitive.Viewport.Props): React.ReactElement {
-  return (
-    <AlertDialogPrimitive.Viewport
-      className={cn(
-        "fixed inset-0 z-50 grid grid-rows-[1fr_auto_3fr] justify-items-center p-4",
-        className,
-      )}
-      data-slot="alert-dialog-viewport"
-      {...props}
-    />
   );
 }
 
@@ -63,13 +25,18 @@ export function AlertDialogPopup({
   portalProps?: AlertDialogPrimitive.Portal.Props;
 }): React.ReactElement {
   return (
-    <AlertDialogPortal {...portalProps}>
-      <AlertDialogBackdrop />
-      <AlertDialogViewport
+    <AlertDialogPrimitive.Portal {...portalProps}>
+      <AlertDialogPrimitive.Backdrop
+        className="fixed inset-0 z-50 bg-black/32 backdrop-blur-sm transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0"
+        data-slot="alert-dialog-backdrop"
+      />
+      <AlertDialogPrimitive.Viewport
         className={cn(
+          "fixed inset-0 z-50 grid grid-rows-[1fr_auto_3fr] justify-items-center p-4",
           bottomStickOnMobile &&
             "max-sm:grid-rows-[1fr_auto] max-sm:p-0 max-sm:pt-12",
         )}
+        data-slot="alert-dialog-viewport"
       >
         <AlertDialogPrimitive.Popup
           className={cn(
@@ -81,8 +48,8 @@ export function AlertDialogPopup({
           data-slot="alert-dialog-popup"
           {...props}
         />
-      </AlertDialogViewport>
-    </AlertDialogPortal>
+      </AlertDialogPrimitive.Viewport>
+    </AlertDialogPrimitive.Portal>
   );
 }
 
@@ -160,8 +127,4 @@ export function AlertDialogClose(
   );
 }
 
-export {
-  AlertDialogPrimitive,
-  AlertDialogBackdrop as AlertDialogOverlay,
-  AlertDialogPopup as AlertDialogContent,
-};
+export { AlertDialogPrimitive };

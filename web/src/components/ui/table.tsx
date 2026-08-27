@@ -70,22 +70,6 @@ export function TableBody({
   );
 }
 
-export function TableFooter({
-  className,
-  ...props
-}: React.ComponentProps<"tfoot">): React.ReactElement {
-  return (
-    <tfoot
-      className={cn(
-        "border-t in-data-[variant=card]:border-none bg-transparent not-in-data-[variant=card]:bg-[color-mix(in_srgb,var(--card),var(--color-black)_2%)] font-medium dark:not-in-data-[variant=card]:bg-[color-mix(in_srgb,var(--card),var(--color-white)_2%)] [&>tr]:last:border-b-0",
-        className,
-      )}
-      data-slot="table-footer"
-      {...props}
-    />
-  );
-}
-
 export function TableRow({
   className,
   ...props
@@ -129,22 +113,6 @@ export function TableCell({
         className,
       )}
       data-slot="table-cell"
-      {...props}
-    />
-  );
-}
-
-export function TableCaption({
-  className,
-  ...props
-}: React.ComponentProps<"caption">): React.ReactElement {
-  return (
-    <caption
-      className={cn(
-        "in-data-[variant=card]:my-4 mt-4 text-muted-foreground text-sm",
-        className,
-      )}
-      data-slot="table-caption"
       {...props}
     />
   );
