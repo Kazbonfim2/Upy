@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { ensureSchema } from "./db";
 import { monitorRoutes } from "./routes/monitors";
 import { serviceRoutes } from "./routes/services";
+import { systemRoutes } from "./routes/system";
 
 const app = new Hono();
 
@@ -22,6 +23,7 @@ app.onError((err, c) => {
 });
 
 app.get("/health", (c) => c.json({ ok: true }));
+app.route("/api/system", systemRoutes);
 app.route("/api/services", serviceRoutes);
 app.route("/api/monitors", monitorRoutes);
 

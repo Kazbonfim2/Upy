@@ -86,7 +86,18 @@ export type MonitorDetail = Monitor & {
   cards: CardRow[];
 };
 
+export type SystemStatus = {
+  hasUpdate: boolean;
+  currentVersion: string;
+  currentCommit: string | null;
+  latestVersion: string;
+  releaseUrl: string;
+  checkedAt: number;
+};
+
 export const api = {
+  getSystemStatus: (force = false) =>
+    req<SystemStatus>(`/api/system/status${force ? "?force=true" : ""}`),
   listServices: () => req<Service[]>("/api/services"),
   getService: (id: number) => req<Service>(`/api/services/${id}`),
   createService: (body: { name: string; baseUrl: string }) =>
