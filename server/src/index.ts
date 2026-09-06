@@ -5,6 +5,7 @@ import { ensureSchema } from "./db";
 import { monitorRoutes } from "./routes/monitors";
 import { serviceRoutes } from "./routes/services";
 import { systemRoutes } from "./routes/system";
+import { aiRoutes } from "./routes/ai";
 
 const app = new Hono();
 
@@ -26,6 +27,7 @@ app.get("/health", (c) => c.json({ ok: true }));
 app.route("/api/system", systemRoutes);
 app.route("/api/services", serviceRoutes);
 app.route("/api/monitors", monitorRoutes);
+app.route("/api/ai", aiRoutes);
 
 const port = Number(process.env.API_PORT || 3000);
 
