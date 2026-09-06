@@ -23,6 +23,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3"
+      - name: Setup .env
+        run: cp .env.example .env
       - run: bun install --frozen-lockfile
       - run: bun run check
 
@@ -36,6 +38,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3"
+      - name: Setup .env
+        run: cp .env.example .env && cp ../.env.example ../.env
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run build
@@ -44,4 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Setup .env
+        run: cp .env.example .env
       - run: docker compose build
+
