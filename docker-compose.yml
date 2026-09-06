@@ -6,11 +6,11 @@ services:
       POSTGRES_PASSWORD: upy
       POSTGRES_DB: upy
     ports:
-      - "5433:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U upy -d upy"]
+      test: [ "CMD-SHELL", "pg_isready -U upy -d upy" ]
       interval: 3s
       timeout: 3s
       retries: 10
@@ -19,18 +19,18 @@ services:
     build: ./server
     command: bun run src/index.ts
     ports:
-      - "3000:3000"
+      - "${API_PORT}:${API_PORT}"
     environment:
       DATABASE_URL: postgres://upy:upy@db:5432/upy
-      API_PORT: "3000"
-      CORS_ORIGIN: http://localhost:5173
+      API_PORT: ${API_PORT}
+      CORS_ORIGIN: ${CORS_ORIGIN}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "bun -e \"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test: [ "CMD-SHELL", "bun -e \"fetch('http://localhost:${API_PORT}/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"" ]
       interval: 3s
       timeout: 3s
       retries: 10
@@ -60,12 +60,13 @@ services:
       context: ./web
       target: dev
     ports:
-      - "5173:5173"
+      - "${WEB_PORT}:${WEB_PORT}"
     volumes:
       - ./web:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=${VITE_API_URL}
+      - WEB_PORT=${WEB_PORT}
     depends_on:
       api:
         condition: service_healthy
