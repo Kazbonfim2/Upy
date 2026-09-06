@@ -138,9 +138,4 @@ export const api = {
     }),
   removeCard: (id: number, cardId: number) =>
     req<{ ok: boolean }>(`/api/monitors/${id}/cards/${cardId}`, { method: "DELETE" }),
-  generateTraverseCode: (body: { responseBody: string; language: "javascript" | "typescript" }) =>
-    req<{ code: string }>("/api/ai/traverse", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
 };

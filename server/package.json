@@ -12,7 +12,6 @@
     "hono": "^4.9.6",
     "nodemailer": "^9.0.5",
     "postgres": "^3.4.7",
-    "prettier": "^3.9.6",
     "zod": "^4.4.3"
   },
   "devDependencies": {

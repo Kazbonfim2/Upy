@@ -213,19 +213,3 @@ export function parseGroqCard(raw: string): { name: string; status: string; desc
   if (!name || !status) return null;
   return { name, status, description };
 }
-
-export const traverseSchema = z.object({
-  responseBody: z.string().trim().min(1, "corpo da resposta obrigatório"),
-  language: z.enum(["javascript", "typescript"]).default("javascript"),
-});
-
-export function parseTraverseInput(body: Record<string, unknown>): {
-  responseBody: string;
-  language: "javascript" | "typescript";
-} {
-  const res = traverseSchema.safeParse(body);
-  if (!res.success) {
-    throw new Error(res.error.issues[0]?.message || "parâmetros inválidos");
-  }
-  return res.data;
-}

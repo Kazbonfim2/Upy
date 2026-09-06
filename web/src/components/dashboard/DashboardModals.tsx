@@ -3,13 +3,12 @@
  * Reúne os modais de criação/edição de serviços, endpoints, cards manuais e visualização de respostas JSON.
  */
 
-import { ArrowLeftIcon, SparklesIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { SparklesIcon } from "lucide-react";
+import type { FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogClose,
@@ -37,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { api, type CardRow, type MonitorDetail, type Service } from "@/lib/api";
+import type { CardRow, MonitorDetail, Service } from "@/lib/api";
 
 export const METHODS = [
   { label: "GET", value: "GET" },
@@ -197,51 +196,6 @@ export function DashboardModals({
   confirmState,
   onConfirmStateChange,
 }: DashboardModalsProps) {
-  const [aiMode, setAiMode] = useState<"response" | "code">("response");
-  const [isTs, setIsTs] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiCode, setAiCode] = useState<string | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [copiedAiCode, setCopiedAiCode] = useState(false);
-
-  const handleCloseResponseViewer = () => {
-    setAiMode("response");
-    setAiCode(null);
-    setAiError(null);
-    setCopiedAiCode(false);
-    onViewingResponseChange(null);
-  };
-
-  const handleTraverseWithAi = async () => {
-    if (!viewingResponse?.body?.trim() || aiLoading) return;
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const res = await api.generateTraverseCode({
-        responseBody: viewingResponse.body,
-        language: isTs ? "typescript" : "javascript",
-      });
-      setAiCode(res.code);
-      setAiMode("code");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Falha ao gerar código com IA";
-      setAiError(msg);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleCopyAiCode = async () => {
-    if (!aiCode) return;
-    try {
-      await navigator.clipboard.writeText(aiCode);
-      setCopiedAiCode(true);
-      setTimeout(() => setCopiedAiCode(false), 2000);
-    } catch (err) {
-      console.error("Falha ao copiar:", err);
-    }
-  };
-
   const serviceSelectItems = services.map((s) => ({
     label: `${s.name} (${s.baseUrl})`,
     value: s,
@@ -670,150 +624,43 @@ export function DashboardModals({
       <Dialog
         open={viewingResponse !== null}
         onOpenChange={(next) => {
-          if (!next) {
-            handleCloseResponseViewer();
-          }
+          if (!next) onViewingResponseChange(null);
         }}
       >
-        <DialogPopup className="sm:max-w-2xl">
-          {aiMode === "code" && aiCode ? (
-            <>
-              <DialogHeader>
-                <div className="flex items-center justify-between gap-2 pr-6">
-                  <DialogTitle>
-                    {viewingResponse?.title ? `${viewingResponse.title} — ` : ""}
-                    ({isTs ? "TypeScript" : "JavaScript"})
-                  </DialogTitle>
-                </div>
-                <DialogDescription>
-                  Código Vanilla {isTs ? "TypeScript" : "JavaScript"} formatado para consumir e integrar a resposta.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogPanel className="grid gap-4">
-                <pre className="max-h-96 overflow-auto rounded-md bg-muted/60 p-3.5 font-mono text-xs text-foreground whitespace-pre-wrap break-all select-all">
-                  {aiCode}
-                </pre>
-              </DialogPanel>
-              <DialogFooter>
-                <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => setAiMode("response")}
-                  >
-                    <ArrowLeftIcon className="size-3.5" />
-                    Voltar
-                  </Button>
-                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                      onClick={handleCopyAiCode}
-                    >
-                      {copiedAiCode ? "Copiado!" : "Copiar"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="w-full sm:w-auto"
-                      onClick={handleCloseResponseViewer}
-                    >
-                      Fechar
-                    </Button>
-                  </div>
-                </div>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>{viewingResponse?.title ?? "Resposta"}</DialogTitle>
-                <DialogDescription>Corpo da resposta retornado pelo endpoint.</DialogDescription>
-              </DialogHeader>
-              <DialogPanel className="grid gap-4">
-                {aiError ? (
-                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex flex-col gap-2">
-                    <p className="font-medium">{aiError}</p>
-                    <Button
-                      type="button"
-                      variant="destructive-outline"
-                      size="xs"
-                      className="w-fit"
-                      disabled={aiLoading}
-                      onClick={handleTraverseWithAi}
-                    >
-                      Tentar novamente
-                    </Button>
-                  </div>
-                ) : null}
-
-                {viewingResponse ? (
-                  <pre className="max-h-96 overflow-auto rounded-md bg-muted/60 p-3.5 font-mono text-xs text-foreground whitespace-pre-wrap break-all select-all">
-                    {formatResponseBody(viewingResponse.body)}
-                  </pre>
-                ) : null}
-              </DialogPanel>
-              <DialogFooter>
-                <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5 rounded-lg border bg-muted/50 px-2 py-1 text-xs">
-                      <span
-                        className={`transition-colors ${!isTs ? "font-semibold text-foreground" : "text-muted-foreground"}`}
-                      >
-                        JS
-                      </span>
-                      <Switch
-                        checked={isTs}
-                        onCheckedChange={(checked) => setIsTs(Boolean(checked))}
-                        disabled={aiLoading}
-                        aria-label="Toggle TypeScript ou JavaScript"
-                      />
-                      <span
-                        className={`transition-colors ${isTs ? "font-semibold text-foreground" : "text-muted-foreground"}`}
-                      >
-                        TS
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="default"
-                      loading={aiLoading}
-                      disabled={aiLoading || !viewingResponse?.body?.trim()}
-                      onClick={handleTraverseWithAi}
-                      className="w-full border-orange-500 dark:border-yellow-400 sm:w-auto"
-                    >
-                      <SparklesIcon className="size-3.5 text-amber-500 dark:text-amber-300" />
-                      Integrar com IA
-                    </Button>
-                  </div>
-                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
-                    {viewingResponse?.body ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        disabled={aiLoading}
-                        onClick={() => onCopyResponse(formatResponseBody(viewingResponse.body))}
-                      >
-                        {copiedResponse ? "Copiado!" : "Copiar"}
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="w-full sm:w-auto"
-                      disabled={aiLoading}
-                      onClick={handleCloseResponseViewer}
-                    >
-                      Fechar
-                    </Button>
-                  </div>
-                </div>
-              </DialogFooter>
-            </>
-          )}
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>{viewingResponse?.title ?? "Resposta"}</DialogTitle>
+            <DialogDescription>Corpo da resposta retornado pelo endpoint.</DialogDescription>
+          </DialogHeader>
+          <DialogPanel className="grid gap-4">
+            {viewingResponse ? (
+              <pre className="max-h-96 overflow-auto rounded-md bg-muted/60 p-3.5 font-mono text-xs text-foreground whitespace-pre-wrap break-all select-all">
+                {formatResponseBody(viewingResponse.body)}
+              </pre>
+            ) : null}
+          </DialogPanel>
+          <DialogFooter>
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+              {viewingResponse?.body ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => onCopyResponse(formatResponseBody(viewingResponse.body))}
+                >
+                  {copiedResponse ? "Copiado!" : "Copiar"}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full sm:w-auto"
+                onClick={() => onViewingResponseChange(null)}
+              >
+                Fechar
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogPopup>
       </Dialog>
 
